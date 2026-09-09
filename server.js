@@ -84,7 +84,13 @@ const EMPH_OFF = '\x1B\x45\x00\x1D\x21\x00';
 const BIG_ON = '\x1D\x21\x11\x1B\x45\x01';
 const PRINT_WIDTH = 47;           // počet znaků na řádek (šířka účtenky i uzávěrky)
 const PRINT_DIR = path.join(__dirname, 'tisky'); // složka pro tiskové výstupy (.txt)
-fs.mkdirSync(PRINT_DIR, { recursive: true });
+
+// Zajistí, že složka na tisky existuje (recursive: true nevadí, když už je).
+// Voláno před každým zápisem/čtením, aby to fungovalo, i kdyby ji někdo za běhu smazal.
+function ensurePrintDir() {
+  fs.mkdirSync(PRINT_DIR, { recursive: true });
+}
+ensurePrintDir();
 
 // Množství pro tisk: půlka se píše jako 1/2, jinak číslo
 const fmtQtyCz = q => Number(q) === 0.5 ? '1/2' : String(Number(q));
@@ -138,6 +144,7 @@ function sendToPrinter(text, big = false) {
 
 // Zapíše text do .txt (záloha/log) a zároveň vytiskne (big = 2× velikost písma)
 function writeAndPrint(filename, text, big = false) {
+  ensurePrintDir();   // kdyby složka mezitím zmizela
   // do .txt bez řídicích markerů zvýraznění (\x01–\x04)
   fs.writeFileSync(path.join(PRINT_DIR, filename), text.replace(/[\x01\x02\x03\x04]/g, ''), 'utf8');
   sendToPrinter(text, big);
