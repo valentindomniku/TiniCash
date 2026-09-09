@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Počítač: localhost
--- Vytvořeno: Stř 09. zář 2026, 15:02
+-- Vytvořeno: Stř 09. zář 2026, 22:32
 -- Verze serveru: 10.4.28-MariaDB
 -- Verze PHP: 8.2.4
 
@@ -108,23 +108,6 @@ CREATE TABLE `order_items` (
   `quantity` decimal(5,2) NOT NULL DEFAULT 1.00,
   `unit_price` decimal(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Struktura tabulky `owner`
---
-
-CREATE TABLE `owner` (
-  `pin_hash` varchar(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Vypisuji data pro tabulku `owner`
---
-
-INSERT INTO `owner` (`pin_hash`) VALUES
-('f3ba6e674209489e6fc4baf2589469fbbd06720bd036287bd194aabd288ca782');
 
 -- --------------------------------------------------------
 
@@ -636,6 +619,29 @@ INSERT INTO `product_categories` (`product_id`, `category_id`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Struktura tabulky `settings`
+--
+
+CREATE TABLE `settings` (
+  `skey` varchar(50) NOT NULL,
+  `svalue` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Vypisuji data pro tabulku `settings`
+--
+
+INSERT INTO `settings` (`skey`, `svalue`) VALUES
+('shop_address', 'Prazska 14, Prelouc'),
+('shop_ico', '25642006'),
+('shop_name', 'PIZZERIA PINOCCHIO'),
+('shop_phone', '+420 466 959 048'),
+('takeaway_numbers', '16,17,18,19,23,24,25'),
+('valid_tables', '1-15,20-22,101-117');
+
+-- --------------------------------------------------------
+
+--
 -- Struktura tabulky `void_log`
 --
 
@@ -699,6 +705,12 @@ ALTER TABLE `product_categories`
   ADD KEY `category_id` (`category_id`);
 
 --
+-- Indexy pro tabulku `settings`
+--
+ALTER TABLE `settings`
+  ADD PRIMARY KEY (`skey`);
+
+--
 -- Indexy pro tabulku `void_log`
 --
 ALTER TABLE `void_log`
@@ -712,31 +724,31 @@ ALTER TABLE `void_log`
 -- AUTO_INCREMENT pro tabulku `categories`
 --
 ALTER TABLE `categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT pro tabulku `closings`
 --
 ALTER TABLE `closings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=97;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=99;
 
 --
 -- AUTO_INCREMENT pro tabulku `item_closings`
 --
 ALTER TABLE `item_closings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT pro tabulku `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=405;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=416;
 
 --
 -- AUTO_INCREMENT pro tabulku `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1526;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1541;
 
 --
 -- AUTO_INCREMENT pro tabulku `void_log`

@@ -10,7 +10,8 @@ $chrome = @(
 
 $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 $kiosk = Join-Path $PSScriptRoot 'kiosk.ps1'
-$icon = Join-Path $PSScriptRoot 'logos\logo.ico'   # vlastni ikona kasy
+$root = Split-Path $PSScriptRoot -Parent   # koren projektu (o slozku vyse)
+$icon = Join-Path $root 'logos\logo.ico'   # vlastni ikona kasy
 $ws = New-Object -ComObject WScript.Shell
 
 $startup = [Environment]::GetFolderPath('Startup')
@@ -32,7 +33,7 @@ $path = Join-Path $desktop 'Kasa.lnk'
 $lnk = $ws.CreateShortcut($path)
 $lnk.TargetPath = $ps
 $lnk.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$kiosk`""
-$lnk.WorkingDirectory = $PSScriptRoot
+$lnk.WorkingDirectory = $root
 if (Test-Path $icon) { $lnk.IconLocation = "$icon,0" }
 elseif ($chrome) { $lnk.IconLocation = "$chrome,0" }
 $lnk.Description = "TiniCash kasa (kiosk, 2. monitor)"

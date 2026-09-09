@@ -93,7 +93,7 @@ const PRINT_ENABLED = true;
 const PRINTER_TARGET = process.env.PRINTER_PORT || 'USB001';
 // const PRINTER_TARGET = '\\\\.\\COM3';
 // ─────────────────────────────────────────────────────────────────────────
-const RAWPRINT_PS = path.join(__dirname, 'rawprint.ps1');
+const RAWPRINT_PS = path.join(__dirname, 'scripts', 'rawprint.ps1');
 const ESC_INIT = '\x1B\x40';      // ESC @  — inicializace tiskárny
 const PAPER_CUT = '\x1D\x56\x00'; // GS V 0 — plný střih papíru
 const TICKET_SIZE = '\x1D\x21\x11'; // GS ! 0x11 — 2× výška i šířka (kuchyňský/storno lístek)

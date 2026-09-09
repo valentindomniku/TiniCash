@@ -15,7 +15,7 @@ if not exist node_modules (
 
 REM 2) zastupce na plose (BEZ autostartu)
 echo [2/2] vytvarim zastupce "Kasa" na plose ...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0make_shortcuts.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\make_shortcuts.ps1"
 
 echo.
 echo === HOTOVO ===

@@ -3,7 +3,7 @@
 #  2) otevre Chrome v kiosk modu na DRUHEM monitoru (kdyz neni, tak na primarnim).
 Add-Type -AssemblyName System.Windows.Forms
 
-$root = $PSScriptRoot
+$root = Split-Path $PSScriptRoot -Parent   # server.js je o slozku vyse (koren projektu)
 
 function Test-Server {
   try {
