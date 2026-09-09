@@ -27,6 +27,27 @@ const h = fn => async (req, res) => {
   }
 };
 
+// ─── NASTAVENÍ (tabulka settings) ───
+// Výchozí hodnoty = to, co bylo dřív natvrdo v kódu. Když řádek v DB chybí,
+// použije se default, takže tisk funguje i před prvním načtením z databáze.
+const SETTINGS_DEFAULTS = {
+  shop_name: 'PIZZERIA PINOCCHIO',
+  shop_address: 'Prazska 14, Prelouc',
+  shop_ico: '25642006',
+  shop_phone: '+420 466 959 048',
+  takeaway_numbers: '16,17,18,19,23,24,25',
+  valid_tables: '1-15,20-22,101-117',
+};
+let settingsCache = { ...SETTINGS_DEFAULTS };
+
+async function loadSettings() {
+  const [rows] = await pool.query('SELECT skey, svalue FROM settings');
+  const m = { ...SETTINGS_DEFAULTS };
+  for (const r of rows) m[r.skey] = r.svalue;
+  settingsCache = m;
+}
+loadSettings().catch(e => console.error('Načtení nastavení selhalo:', e.message));
+
 // Kód pro odemčení kasy při startu (ochrana, kdyby se někdo připojil na stejnou WiFi)
 const STARTUP_CODE = process.env.STARTUP_CODE || '374186';
 
@@ -459,11 +480,11 @@ const bigTotalLine = (label, amount) => `\x01${padLine(label, amount)}\x02`;
 // Číslo účtu vpravo u kraje, stejným zvýrazněním jako CELKEM
 const bigRightLine = text => `\x01${text.padStart(PRINT_WIDTH)}\x02`;
 
-// Hlavička provozovny — stejná na účtence i na uzávěrkách
-const HEAD_LINES = [
-  centerLine('PIZZERIA PINOCCHIO'),
-  centerLine('Prazska 14, Prelouc'),
-  centerLine('IČO: 25642006'),
+// Hlavička provozovny (z nastavení) — stejná na účtence i na uzávěrkách
+const headLines = () => [
+  centerLine(settingsCache.shop_name),
+  centerLine(settingsCache.shop_address),
+  centerLine('IČO: ' + settingsCache.shop_ico),
 ];
 
 // Sečte základ podle sazby DPH; položky musí mít quantity, unit_price a vat_rate
@@ -499,7 +520,7 @@ function buildReceiptText(order, items) {
 
   // hlavička: datum/čas (vlevo), pod tím UCET# zvýrazněný u pravého kraje
   const lines = [
-    ...HEAD_LINES,
+    ...headLines(),
     sepLine,
     `${fmtDateCz(now)}  ${fmtTimeCz(now)}`,
     bigRightLine(`UCET#${order.table_number}`),
@@ -519,7 +540,7 @@ function buildReceiptText(order, items) {
   lines.push(bigTotalLine('CELKEM:', `${fmtCz(total)} Kč`));
   lines.push(sepLine);
   lines.push(centerLine('DEKUJEME ZA NAVSTEVU'));
-  lines.push(centerLine('tel.: +420 466 959 048'));
+  lines.push(centerLine('tel.: ' + settingsCache.shop_phone));
   lines.push('');
 
   return lines.join('\r\n');
@@ -543,6 +564,24 @@ app.post('/api/print/receipt', h(async (req, res) => {
 
   await pool.query('UPDATE orders SET status = "closed", closed_at = NOW(), payment_type = ? WHERE id = ?', [payType, orderId]);
 
+  res.json({ success: true });
+}));
+
+// Nastavení kasy (hlavička účtenky, čísla „s sebou", platné stoly) — klient je potřebuje při startu
+app.get('/api/settings', h(async (req, res) => {
+  res.json(settingsCache);
+}));
+
+// Uložení nastavení — jen známé klíče, ať se do settings nedostane cokoliv
+app.put('/api/admin/settings', h(async (req, res) => {
+  const zmeny = Object.entries(req.body || {}).filter(([k]) => k in SETTINGS_DEFAULTS);
+  for (const [k, v] of zmeny) {
+    await pool.query(
+      'INSERT INTO settings (skey, svalue) VALUES (?, ?) ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)',
+      [k, String(v ?? '')]
+    );
+  }
+  await loadSettings();
   res.json({ success: true });
 }));
 
@@ -570,7 +609,7 @@ function buildClosingText(title, periodLine, orders, voidCount, voidTotal, vatGr
   const grandTotal = cashTotal + takeawayTotal;
 
   const lines = [
-    ...HEAD_LINES,
+    ...headLines(),
     sepLine,
     centerLine(title),
     periodLine,
@@ -665,7 +704,7 @@ function buildItemClosingText(periodLine, items, total) {
   const fmtQty = q => Number.isInteger(Number(q)) ? String(Number(q)) : String(Number(q)).replace('.', ',');
 
   const lines = [
-    ...HEAD_LINES,
+    ...headLines(),
     sepLine,
     centerLine('POLOZKOVA UZAVERKA'),
     periodLine,

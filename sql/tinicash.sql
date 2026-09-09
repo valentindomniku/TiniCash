@@ -118,3 +118,21 @@ CREATE TABLE item_closings (
   closed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 );
+
+-- -----------------------------------------------------
+-- Nastavení kasy (klíč–hodnota): hlavička účtenky, čísla „s sebou", platné stoly.
+-- Chybějící klíč nahradí výchozí hodnota v server.js.
+-- -----------------------------------------------------
+CREATE TABLE settings (
+  skey   VARCHAR(50) NOT NULL,
+  svalue TEXT,
+  PRIMARY KEY (skey)
+);
+
+INSERT INTO settings (skey, svalue) VALUES
+  ('shop_name',        'PIZZERIA PINOCCHIO'),
+  ('shop_address',     'Prazska 14, Prelouc'),
+  ('shop_ico',         '25642006'),
+  ('shop_phone',       '+420 466 959 048'),
+  ('takeaway_numbers', '16,17,18,19,23,24,25'),
+  ('valid_tables',     '1-15,20-22,101-117');

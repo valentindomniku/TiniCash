@@ -184,6 +184,7 @@
       <div id="admin-tabs">
         <button class="admin-tab active" data-tab="products">Produkty</button>
         <button class="admin-tab" data-tab="categories">Kategorie</button>
+        <button class="admin-tab" data-tab="settings">Nastavení</button>
       </div>
 
       <div id="admin-products" class="admin-pane">
@@ -200,6 +201,27 @@
           <button id="admin-cat-new" class="act act-green">＋ Nová kategorie</button>
         </div>
         <div id="admin-cat-list" class="admin-list"></div>
+      </div>
+
+      <div id="admin-settings" class="admin-pane hidden">
+        <div class="set-form">
+          <div class="set-section">Hlavička účtenky a uzávěrek</div>
+          <label>Název podniku<input id="set-name" type="text" autocomplete="off"></label>
+          <label>Adresa<input id="set-address" type="text" autocomplete="off"></label>
+          <label>IČO<input id="set-ico" type="text" autocomplete="off"></label>
+          <label>Telefon<input id="set-phone" type="text" autocomplete="off"></label>
+
+          <div class="set-section">Čísla účtů „s sebou"</div>
+          <label>oddělená čárkou<input id="set-takeaway" type="text" inputmode="numeric" autocomplete="off" placeholder="16,17,18,…"></label>
+
+          <div class="set-section">Platné stoly (zelené účty), nevybrané budou „s sebou" (žluté účty)</div>
+          <label>rozsahy oddělené čárkou (např. 1-15,20-22,101-117)
+            <input id="set-tables" type="text" autocomplete="off" placeholder="1-15,20-22,101-117"></label>
+        </div>
+        <div id="set-error" class="pe-error"></div>
+        <div class="pe-actions">
+          <button id="set-save" class="act act-green">Uložit</button>
+        </div>
       </div>
 
       <button id="modal-admin-close" class="act act-gray modal-close-btn">Zavřít</button>

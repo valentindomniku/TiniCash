@@ -11,9 +11,6 @@ const CAT_COLORS = [
 // Produkty zobrazené v "Text" panelu (jedno tlačítko na řádek, široké přes dva)
 const TEXT_PRODUCT_IDS = [700, 701, 702, 703, 704, 705];
 
-// Čísla účtů pro "s sebou" — lišta dole vlevo (zelená = volné, žlutá = obsazené)
-const TAKEAWAY_NUMBERS = [16, 17, 18, 19, 23, 24, 25];
-
 // Produkty pro tlačítka "BAR Kč" / "KUCHYŇ Kč" — cena se zadává ručně.
 // KUCHYŇ se tiskne (print_kitchen=1), BAR ne (print_kitchen=0).
 const BAR_PRODUCT_ID = 400;
@@ -21,6 +18,28 @@ const KUCHYN_PRODUCT_ID = 401;
 
 // Kategorie z posledního načtení — čte se z nich barva, příznak numbered a doplňková kategorie
 let categoriesById = {};
+
+// Nastavení z tabulky settings (hlavička se řeší na serveru; klient potřebuje čísla „s sebou" a platné stoly)
+let settings = {};
+let takeawayNumbers = [];   // [16, 17, …]
+let validRanges = [];       // [[1,15], [20,22], …]
+
+function parseSettings(s) {
+  settings = s || {};
+  takeawayNumbers = String(settings.takeaway_numbers || '')
+    .split(',').map(x => parseInt(x, 10)).filter(Number.isInteger);
+  validRanges = String(settings.valid_tables || '').split(',').map(part => {
+    const [a, b] = part.split('-').map(x => parseInt(x.trim(), 10));
+    return Number.isInteger(a) ? [a, Number.isInteger(b) ? b : a] : null;
+  }).filter(Boolean);
+}
+
+// výchozí hodnoty, než dorazí odpověď ze serveru (a když selže)
+parseSettings({ takeaway_numbers: '16,17,18,19,23,24,25', valid_tables: '1-15,20-22,101-117' });
+
+async function loadSettings() {
+  try { parseSettings(await api('GET', '/settings')); } catch {}
+}
 
 async function api(method, path, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
@@ -399,7 +418,7 @@ function fmtDateTime(s) {
 // Platné rozsahy čísel stolů (zelená); ostatní čísla žlutá
 function isValidTable(n) {
   n = Number(n);
-  return (n >= 1 && n <= 15) || (n >= 20 && n <= 22) || (n >= 101 && n <= 117);
+  return validRanges.some(([lo, hi]) => n >= lo && n <= hi);
 }
 
 // Popisek čísla účtu pro lístek: žluté účty (mimo platné stoly) = "s sebou"
@@ -683,7 +702,7 @@ async function refreshTakeawayBar() {
   if (!Number.isNaN(active)) taken.add(active);
 
   bar.innerHTML = '';
-  TAKEAWAY_NUMBERS.forEach(n => {
+  takeawayNumbers.forEach(n => {
     const btn = document.createElement('button');
     btn.className = 'takeaway-btn ' + (taken.has(n) ? 'taken' : 'free');
     btn.textContent = n;
@@ -1096,6 +1115,35 @@ function adminSwitchTab(tab) {
   document.querySelectorAll('.admin-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('admin-products').classList.toggle('hidden', tab !== 'products');
   document.getElementById('admin-categories').classList.toggle('hidden', tab !== 'categories');
+  document.getElementById('admin-settings').classList.toggle('hidden', tab !== 'settings');
+  if (tab === 'settings') renderSettings();
+}
+
+// ─── NASTAVENÍ ───
+
+function renderSettings() {
+  document.getElementById('set-name').value = settings.shop_name ?? '';
+  document.getElementById('set-address').value = settings.shop_address ?? '';
+  document.getElementById('set-ico').value = settings.shop_ico ?? '';
+  document.getElementById('set-phone').value = settings.shop_phone ?? '';
+  document.getElementById('set-takeaway').value = settings.takeaway_numbers ?? '';
+  document.getElementById('set-tables').value = settings.valid_tables ?? '';
+  document.getElementById('set-error').textContent = '';
+}
+
+async function saveSettings() {
+  const payload = {
+    shop_name: document.getElementById('set-name').value.trim(),
+    shop_address: document.getElementById('set-address').value.trim(),
+    shop_ico: document.getElementById('set-ico').value.trim(),
+    shop_phone: document.getElementById('set-phone').value.trim(),
+    takeaway_numbers: document.getElementById('set-takeaway').value.trim(),
+    valid_tables: document.getElementById('set-tables').value.trim(),
+  };
+  try { await api('PUT', '/admin/settings', payload); }
+  catch (e) { document.getElementById('set-error').textContent = e.message; return; }
+  await loadSettings();
+  showToast('Nastavení uloženo');
 }
 
 function renderAdminProducts() {
@@ -1327,6 +1375,7 @@ function setupAdmin() {
   document.getElementById('pe-cancel').addEventListener('click', closeProdEdit);
   document.getElementById('pe-save').addEventListener('click', saveProd);
   document.getElementById('pe-delete').addEventListener('click', deleteProd);
+  document.getElementById('set-save').addEventListener('click', saveSettings);
 }
 
 // ─── VYPNUTÍ KASY ─────────────────────────────────────────
@@ -1431,5 +1480,7 @@ updateClock();
 setInterval(updateClock, 1000);   // hodiny v display baru
 document.addEventListener('click', playClickSound, true);   // zvuk při každém kliknutí
 
-setOrderUI();
-refreshMainTiles();
+loadSettings().finally(() => {
+  setOrderUI();
+  refreshMainTiles();
+});
