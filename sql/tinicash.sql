@@ -88,13 +88,6 @@ CREATE TABLE order_items (
 );
 
 -- -----------------------------------------------------
--- Majitel (PIN pro uzávěrku, ukládá se jako SHA2(pin, 256))
--- -----------------------------------------------------
-CREATE TABLE owner (
-  pin_hash VARCHAR(255) NOT NULL
-);
-
--- -----------------------------------------------------
 -- Storna (co se smazalo z už rozepsaného účtu).
 -- quantity je 1 u celého kusu, 0.50 u půlky.
 -- -----------------------------------------------------
@@ -125,6 +118,3 @@ CREATE TABLE item_closings (
   closed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 );
-
--- PIN majitele pro uzávěrky — nahraď si vlastní.
-INSERT INTO owner (pin_hash) VALUES (SHA2('1234', 256));

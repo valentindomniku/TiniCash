@@ -31,6 +31,9 @@ async function api(method, path, body) {
   return data;
 }
 
+// Text z databáze do innerHTML — název produktu si může majitel v adminu napsat jakkoliv
+const esc = s => String(s ?? '').replace(/[&<>"]/g, z => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[z]));
+
 // Panely a modální okna se přepínají třídou .hidden
 const show = id => document.getElementById(id).classList.remove('hidden');
 const hide = id => document.getElementById(id).classList.add('hidden');
@@ -174,12 +177,13 @@ async function addonElements(addonCategoryId) {
 
 // Levá část s "text" tlačítky (produkty z DB) — jedno na řádek, široké přes dva buttony
 async function showTextPanel() {
+  const podleId = await fetchProducts(TEXT_PRODUCT_IDS.map(String));
   renderGrid([]);
   setProductsGridVisible(false);
   const grid = document.getElementById('category-grid');
   for (const id of TEXT_PRODUCT_IDS) {
-    let p;
-    try { p = await api('GET', `/products/${id}`); } catch { continue; }
+    const p = podleId[id];
+    if (!p) continue;
     const btn = makeBtn(p.name, '#5D4037', { gridColumn: '1 / 3', aspectRatio: '4 / 1' });
     btn.addEventListener('click', () => quickAdd(p.id));
     grid.appendChild(btn);
@@ -188,16 +192,22 @@ async function showTextPanel() {
 
 // ─── PRODUCTS GRIDS ───────────────────────────────────────
 
+// Načte produkty podle seznamu PLU jedním dotazem; vrátí mapu id → produkt
+async function fetchProducts(ids) {
+  const seznam = ids.filter(id => id !== '0');
+  if (!seznam.length) return {};
+  const produkty = await api('GET', `/products?ids=${seznam.join(',')}`);
+  return Object.fromEntries(produkty.map(p => [String(p.id), p]));
+}
+
 async function loadGrid(gridId, ids) {
   const grid = document.getElementById(gridId);
+  const podleId = await fetchProducts(ids);
   grid.innerHTML = '';
   for (const id of ids) {
-    if (id === '0') {
-      grid.appendChild(document.createElement('div'));
-    } else {
-      const p = await api('GET', `/products/${id}`);
-      grid.appendChild(makeProductBtn(p));
-    }
+    // '0' je prázdné místo v mřížce; chybějící PLU se přeskočí
+    if (id === '0') grid.appendChild(document.createElement('div'));
+    else if (podleId[id]) grid.appendChild(makeProductBtn(podleId[id]));
   }
 }
 
@@ -275,7 +285,7 @@ function addCustomItem(productId) {
   pendingQty = null;
   displayValue = '';
   updateDisplay();
-  addToOrder(productId, qty, price).catch(e => alert(e.message));
+  addToOrder(productId, qty, price).catch(e => showToast(e.message, 'error'));
 }
 
 function makeProductBtn(p, label) {
@@ -361,8 +371,8 @@ function renderItems(items) {
     const row = document.createElement('div');
     row.className = 'item-row' + (item.id === selectedItemId ? ' selected' : '');
     row.innerHTML = `
-      <span class="item-plu">${item.product_id}</span>
-      <span class="item-name">${item.name}</span>
+      <span class="item-plu">${esc(item.product_id)}</span>
+      <span class="item-name">${esc(item.name)}</span>
       <span class="item-qty">${formatQty(item.quantity)}×</span>
       <span class="item-price">${formatPrice(item.unit_price)}</span>
       <span class="item-total">${formatPrice(item.quantity * item.unit_price)}</span>
@@ -580,7 +590,7 @@ function hideClosingPanel() {
 // Uzávěrka dne — to samé co dělala Uzávěrka dříve
 async function doClosingDay() {
   let open;
-  try { open = await api('GET', '/orders'); } catch (e) { alert(e.message); return; }
+  try { open = await api('GET', '/orders'); } catch (e) { showToast(e.message, 'error'); return; }
   if (open.length > 0) {
     showToast(`Uzávěrku nelze provést — nejdříve uzavřete všechny otevřené účty (${open.length})`, 'error');
     return;
@@ -590,7 +600,7 @@ async function doClosingDay() {
     showToast('Uzávěrka provedena');
     hideClosingPanel();
   } catch (e) {
-    alert('Chyba uzávěrky: ' + e.message);
+    showToast('Chyba uzávěrky: ' + e.message, 'error');
   }
 }
 
@@ -601,7 +611,7 @@ async function doClosingMonth() {
     showToast('Měsíční uzávěrka vytištěna');
     hideClosingPanel();
   } catch (e) {
-    alert('Chyba měsíční uzávěrky: ' + e.message);
+    showToast('Chyba měsíční uzávěrky: ' + e.message, 'error');
   }
 }
 
@@ -612,7 +622,7 @@ async function doClosingItems() {
     showToast('Položková uzávěrka vytištěna');
     hideClosingPanel();
   } catch (e) {
-    alert('Chyba položkové uzávěrky: ' + e.message);
+    showToast('Chyba položkové uzávěrky: ' + e.message, 'error');
   }
 }
 
@@ -646,7 +656,7 @@ async function openAccountsModal() {
       const tableClass = 'modal-account-table' + (valid ? '' : ' warn');
       const tableLabel = valid ? order.table_number : `${order.table_number} - přijde`;
       row.innerHTML = `
-        <span class="${tableClass}">${tableLabel}</span>
+        <span class="${tableClass}">${esc(tableLabel)}</span>
         <span class="modal-account-total">${formatPrice(order.total_price)}</span>
       `;
       row.addEventListener('click', () => {
@@ -695,7 +705,7 @@ async function openVoidsModal() {
   list.innerHTML = '';
   let voids;
   try { voids = await api('GET', '/voids/since-closing'); }
-  catch (e) { alert(e.message); return; }
+  catch (e) { showToast(e.message, 'error'); return; }
 
   if (voids.length === 0) {
     list.innerHTML = '<div class="modal-empty">Žádná storna</div>';
@@ -704,13 +714,13 @@ async function openVoidsModal() {
       const when = fmtDateTime(v.voided_at);
       const table = v.table_number ?? '—';
       const sub = v.total_price != null
-        ? `účet ${formatPrice(v.total_price)} · stůl ${table} · ${when}`
+        ? `účet ${formatPrice(v.total_price)} · stůl ${esc(table)} · ${when}`
         : `<span class="mv-deleted">! celý účet smazán</span> · ${when}`;
       const row = document.createElement('div');
       row.className = 'modal-void-row';
       row.innerHTML = `
         <div class="mv-top">
-          <span class="mv-name">${formatQty(v.quantity)}× ${v.name}</span>
+          <span class="mv-name">${formatQty(v.quantity)}× ${esc(v.name)}</span>
           <span class="mv-amount">${formatPrice(v.unit_price * v.quantity)}</span>
         </div>
         <div class="mv-sub">${sub}</div>
@@ -851,7 +861,7 @@ async function sepSubmit(endpoint, body, chyba) {
   try {
     await api('POST', `/orders/${sepSourceOrderId}/${endpoint}`, body);
   } catch (e) {
-    alert(`${chyba}: ${e.message}`);
+    showToast(`${chyba}: ${e.message}`, 'error');
     return;
   }
   closeSeparateModal();
@@ -874,7 +884,7 @@ function makeSepRow(it, selectable) {
   const row = document.createElement('div');
   row.className = 'sep-row' + (selectable && it.uid === sepSelectedUid ? ' selected' : '');
   row.innerHTML = `
-    <span>${formatQty(it.quantity)}× ${it.name}</span>
+    <span>${formatQty(it.quantity)}× ${esc(it.name)}</span>
     <span>${formatPrice(it.unit_price * it.quantity)}</span>
   `;
   if (selectable) {
@@ -969,11 +979,11 @@ function closePinModal() {
   pinCallback = null;
 }
 
-async function submitPin(pin) {
-  if (!pin) return;
+async function submitPin(kod) {
+  if (!kod) return;
   let valid;
-  try { ({ valid } = await api('POST', '/verify-pin', { pin })); }
-  catch (e) { alert(e.message); return; }
+  try { ({ valid } = await api('POST', '/verify-pin', { pin: kod })); }
+  catch (e) { showToast(e.message, 'error'); return; }
   if (valid) {
     const cb = pinCallback;
     closePinModal();
@@ -1070,7 +1080,7 @@ async function openAdmin() {
   try {
     adminCategories = await api('GET', '/categories');
     adminProducts = await api('GET', '/admin/products');
-  } catch (e) { alert(e.message); return; }
+  } catch (e) { showToast(e.message, 'error'); return; }
   renderAdminProducts();
   renderAdminCategories();
   adminSwitchTab('products');
@@ -1350,7 +1360,7 @@ function addByPlu() {
   if (productId) quickAdd(productId);   // bez otevřeného účtu se ukáže toast (řeší addToOrder)
 }
 async function printReceiptCopy() {
-  try { await api('POST', '/print/receipt/copy'); } catch (e) { alert(e.message); }
+  try { await api('POST', '/print/receipt/copy'); } catch (e) { showToast(e.message, 'error'); }
 }
 async function deleteSelectedItem() {   // bez označené položky smaže poslední na účtu
   const itemId = selectedItemId ?? currentItems[currentItems.length - 1]?.id;

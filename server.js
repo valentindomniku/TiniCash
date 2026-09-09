@@ -30,6 +30,9 @@ const h = fn => async (req, res) => {
 // Kód pro odemčení kasy při startu (ochrana, kdyby se někdo připojil na stejnou WiFi)
 const STARTUP_CODE = process.env.STARTUP_CODE || '374186';
 
+// Kód pro uzávěrky a administraci (dříve PIN majitele v tabulce owner)
+const CLOSING_CODE = process.env.CLOSING_CODE || '963214';
+
 // ─── PRÁCE S OBJEDNÁVKOU ───
 // db = pool (samostatný dotaz) nebo conn (uvnitř transakce)
 
@@ -82,12 +85,6 @@ const BIG_ON = '\x1D\x21\x11\x1B\x45\x01';
 const PRINT_WIDTH = 47;           // počet znaků na řádek (šířka účtenky i uzávěrky)
 const PRINT_DIR = path.join(__dirname, 'tisky'); // složka pro tiskové výstupy (.txt)
 fs.mkdirSync(PRINT_DIR, { recursive: true });
-
-// CELKEM velký (2× výška i šířka + tučně, marker \x03/\x04) na poloviční šířku → částka vpravo u kraje
-const HALF_W = Math.floor(PRINT_WIDTH / 2);
-function bigTotalLine(label, amount) {
-  return `\x03${label + ' '.repeat(Math.max(1, HALF_W - label.length - amount.length)) + amount}\x04`;
-}
 
 // Množství pro tisk: půlka se píše jako 1/2, jinak číslo
 const fmtQtyCz = q => Number(q) === 0.5 ? '1/2' : String(Number(q));
@@ -154,9 +151,15 @@ app.get('/api/categories', h(async (req, res) => {
 
 // Products (optionally filtered by category)
 app.get('/api/products', h(async (req, res) => {
-  const { category } = req.query;
+  const { category, ids } = req.query;
   let query, params = [];
-  if (category) {
+  if (ids) {
+    // hromadné načtení podle seznamu PLU (dlaždice kasy, panel Text) — jedním dotazem
+    const seznam = String(ids).split(',').map(Number).filter(Number.isInteger);
+    if (!seznam.length) return res.json([]);
+    query = 'SELECT * FROM products WHERE id IN (?)';
+    params = [seznam];
+  } else if (category) {
     query = `SELECT p.*, ? AS first_category_id
              FROM products p
              JOIN product_categories pc ON p.id = pc.product_id
@@ -442,6 +445,13 @@ const fmtCz = v => Number(v).toFixed(2).replace('.', ',');
 const fmtDateCz = d => d.toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const fmtTimeCz = d => d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+// Zvýrazněný řádek přes celou šířku: 2× výška + tučně (marker \x01/\x02),
+// takže se popisek i částka zarovnají stejně jako ostatní řádky.
+const bigTotalLine = (label, amount) => `\x01${padLine(label, amount)}\x02`;
+
+// Číslo účtu vpravo u kraje, stejným zvýrazněním jako CELKEM
+const bigRightLine = text => `\x01${text.padStart(PRINT_WIDTH)}\x02`;
+
 // Hlavička provozovny — stejná na účtence i na uzávěrkách
 const HEAD_LINES = [
   centerLine('PIZZERIA PINOCCHIO'),
@@ -459,8 +469,10 @@ function vatGroupsFrom(items) {
   return groups;
 }
 
-// Rozpis DPH od nejvyšší sazby. Měna se předává, protože účtenka tiskne 'Kč' a uzávěrky 'Kc'.
-function vatLines(vatGroups, mena) {
+// Rozpis DPH od nejvyšší sazby. Na termotiskárně z 'Kč' stejně zbude 'Kc' (asciiFold),
+// takže se všude píše 'Kč' a stejně to vypadá i v .txt záloze tisku.
+function vatLines(vatGroups) {
+  const mena = 'Kč';
   const lines = [];
   for (const rate of Object.keys(vatGroups).map(Number).sort((a, b) => b - a)) {
     if (!vatGroups[rate]) continue;
@@ -477,16 +489,13 @@ function vatLines(vatGroups, mena) {
 function buildReceiptText(order, items) {
   const total = Math.ceil(Number(order.total_price));
   const now = new Date();
-  const half = Math.floor(PRINT_WIDTH / 2);   // při 2× šířce se na řádek vejde půlka znaků
 
-  // hlavička: datum/čas (vlevo), pod tím UCET# velký (2× výška i šířka + tučně, vpravo)
-  const ucet = `UCET#${order.table_number}`;
-
+  // hlavička: datum/čas (vlevo), pod tím UCET# zvýrazněný u pravého kraje
   const lines = [
     ...HEAD_LINES,
     sepLine,
     `${fmtDateCz(now)}  ${fmtTimeCz(now)}`,
-    `\x03${ucet.padStart(half)}\x04`,   // marker \x03/\x04 = 2× obě + tučně
+    bigRightLine(`UCET#${order.table_number}`),
     sepLine,
   ];
 
@@ -498,9 +507,9 @@ function buildReceiptText(order, items) {
 
   lines.push(sepLine);
   lines.push(padLine('MEZISOUČET:', `${fmtCz(total)} Kč`));
-  lines.push(...vatLines(vatGroupsFrom(items), 'Kč'));
+  lines.push(...vatLines(vatGroupsFrom(items)));
   lines.push(sepLine);
-  lines.push(bigTotalLine('CELKEM:', `${fmtCz(total)} Kč`));   // 2× výška i šířka + tučně, částka vpravo
+  lines.push(bigTotalLine('CELKEM:', `${fmtCz(total)} Kč`));
   lines.push(sepLine);
   lines.push(centerLine('DEKUJEME ZA NAVSTEVU'));
   lines.push(centerLine('tel.: +420 466 959 048'));
@@ -530,17 +539,16 @@ app.post('/api/print/receipt', h(async (req, res) => {
   res.json({ success: true });
 }));
 
-// Verify owner PIN
-app.post('/api/verify-pin', h(async (req, res) => {
-  const { pin } = req.body;
-  const [rows] = await pool.query('SELECT 1 FROM owner WHERE pin_hash = SHA2(?, 256)', [pin]);
-  res.json({ valid: rows.length > 0 });
-}));
+// Ověření kódu pro uzávěrky
+app.post('/api/verify-pin', (req, res) => {
+  res.json({ valid: req.body.pin === CLOSING_CODE });
+});
 
 // Ověření kódu pro odemčení kasy při startu
 app.post('/api/verify-startup', (req, res) => {
   res.json({ valid: req.body.code === STARTUP_CODE });
 });
+
 
 // ─── UZÁVĚRKY ─────────────────────────────────────────────
 
@@ -565,20 +573,20 @@ function buildClosingText(title, periodLine, orders, voidCount, voidTotal, vatGr
 
   if (voidCount != null) {
     lines.push(padLine('Stornovano:', String(voidCount)));
-    lines.push(padLine('Stornovano (Kc):', `${fmtCz(voidTotal)} Kc`));
+    lines.push(padLine('Stornovano (Kč):', `${fmtCz(voidTotal)} Kč`));
   }
 
   if (vatGroups && Object.keys(vatGroups).length) {
     lines.push(sepLine);
-    lines.push(...vatLines(vatGroups, 'Kc'));
+    lines.push(...vatLines(vatGroups));
   }
 
   lines.push(
     sepLine,
-    padLine('Hotove:', `${fmtCz(cashTotal)} Kc`),
-    padLine('Hotove s sebou:', `${fmtCz(takeawayTotal)} Kc`),
+    padLine('Hotove:', `${fmtCz(cashTotal)} Kč`),
+    padLine('Hotove s sebou:', `${fmtCz(takeawayTotal)} Kč`),
     sepLine,
-    bigTotalLine('CELKEM:', `${fmtCz(grandTotal)} Kc`),   // 2× výška i šířka + tučně, částka vpravo
+    bigTotalLine('CELKEM:', `${fmtCz(grandTotal)} Kč`),
   );
 
   lines.push('');
@@ -660,7 +668,7 @@ function buildItemClosingText(periodLine, items, total) {
   items.forEach(it => lines.push(padLine(it.name, fmtQty(it.qty))));
 
   lines.push(sepLine);
-  lines.push(bigTotalLine('CELKEM:', `${fmtCz(total)} Kc`));   // 2× výška i šířka + tučně, částka vpravo
+  lines.push(bigTotalLine('CELKEM:', `${fmtCz(total)} Kč`));
   lines.push('');
   return lines.join('\r\n');
 }
