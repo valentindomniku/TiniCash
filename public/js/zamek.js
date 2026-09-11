@@ -5,6 +5,7 @@ let pinPad = null;      // vytvoří ho setupPinModal()
 let pinCallback = null;
 
 function openPinModal(onSuccess) {
+  if (SKIP_CODES) { if (onSuccess) onSuccess(); return; }   // testování — bez zadávání kódu
   pinCallback = onSuccess;
   pinPad.clear();
   document.getElementById('pin-error').textContent = '';
@@ -98,6 +99,7 @@ async function submitLock(code) {
 }
 
 function setupLockScreen() {
+  if (SKIP_CODES) { hide('lock-screen'); return; }   // testování — kasa naběhne rovnou
   lockPad = makeNumpad('lock-numpad', 'lock-display', { mask: true, onOk: submitLock });
 }
 
