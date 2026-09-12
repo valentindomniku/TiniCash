@@ -222,13 +222,28 @@ body {
 }
 
 .item-row {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 14px 8px;
+  padding: 14px 8px 14px 16px;   /* vlevo místo pro proužek s rozestupem */
   border-bottom: 1px solid #222;
   gap: 4px;
   font-size: 20px;
 }
+
+/* proužek s rozestupem od kraje i shora/zdola: modrá = do kuchyně, zelená = netiskne se */
+.item-row.to-kitchen::before,
+.item-row.no-kitchen::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 8px;
+  bottom: 8px;
+  width: 6px;
+  border-radius: 3px;
+}
+.item-row.to-kitchen::before { background: #2196f3; }
+.item-row.no-kitchen::before { background: #38843a; }
 
 .item-row:hover {
   background: #1e1e1e;

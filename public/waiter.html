@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>TiniCash — Waiter</title>
+  <link rel="stylesheet" href="css/waiter.css">
+</head>
+
+<body>
+  <!-- ZÁMEK -->
+  <div id="lock">
+    <h1>TiniCash</h1>
+    <div id="lock-display"></div>
+    <div id="lock-error"></div>
+    <div class="pad" id="lock-pad"></div>
+  </div>
+
+  <!-- VÝBĚR STOLU -->
+  <div id="view-tables" class="screen">
+    <div id="open-accounts"></div>
+    <div id="tables-empty" hidden>Žádné otevřené účty</div>
+    <div id="tables-entry">
+      <div id="table-num-display"></div>
+      <div class="pad" id="table-pad"></div>
+    </div>
+  </div>
+
+  <!-- ÚČET -->
+  <div id="view-account" class="screen">
+    <div id="acct-bar">
+      <span class="acct-table" id="acct-table"></span>
+      <span class="acct-total" id="acct-total"></span>
+      <button id="btn-done">Hotovo</button>
+    </div>
+    <div id="acct-items"></div>
+    <div id="cat-tabs"></div>
+    <div id="prod-list"></div>
+  </div>
+
+  <div id="toast" hidden></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/waiter.js"></script>
+</body>
+
+</html>

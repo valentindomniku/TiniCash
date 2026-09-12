@@ -1,0 +1,156 @@
+/* ── TiniCash — mobilní rozhraní číšníka (waiter.html) ── */
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* 100dvh = dynamická výška → spodní číselník se neschová za lištu prohlížeče */
+html, body { margin: 0; height: 100vh; height: 100dvh; }
+body {
+  background: #121212;
+  color: #fff;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: clamp(15px, 4.2vw, 18px);   /* škáluje podle šířky telefonu */
+  overscroll-behavior: none;
+}
+button { font-family: inherit; cursor: pointer; }
+
+/* ── společný číselník ── */
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 340px;       /* na širokém/ležatém displeji nezbytní do obřích tlačítek */
+  margin-inline: auto;
+}
+.pad button {
+  aspect-ratio: 1.6;
+  border: none;
+  border-radius: 10px;
+  background: #263238;
+  color: #fff;
+  font-size: clamp(20px, 6vw, 28px);
+  font-weight: bold;
+}
+.pad button:active { filter: brightness(0.75); }
+.pad .pad-ok { background: #2E7D32; }
+.pad .pad-del { background: #455A64; }
+
+/* ── zámek ── */
+#lock {
+  position: fixed;
+  inset: 0;
+  background: #0d0d0d;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;         /* obsah vycentrovaný, ať se na tabletu neroztáhne */
+  gap: 4px;
+  padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  overflow-y: auto;            /* na nízkém (ležatém) displeji jde zámek odrolovat */
+  z-index: 100;
+}
+#lock h1 { text-align: center; font-size: 24px; margin: 0 0 4px; }
+#lock-display {
+  width: 100%;
+  max-width: 340px;        /* stejně široký jako číselník, ne přes celý tablet */
+  text-align: center;
+  font-size: 34px;
+  letter-spacing: 12px;
+  background: #000;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px 0;
+  min-height: 32px;
+}
+#lock-error { text-align: center; color: #e53935; font-weight: bold; min-height: 24px; }
+
+/* ── obrazovky ── */
+.screen { display: none; flex-direction: column; height: 100%; }
+.screen.active { display: flex; }
+
+/* ── výběr stolu ── */
+#open-accounts {
+  flex: 1 1 auto;            /* vyplní místo nad číselníkem → scroll, když je účtů moc */
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.acc-btn {
+  flex: 1 1 64px;             /* rovnoměrně vyplní řádek na každé šířce */
+  max-width: 120px;
+  border: none;
+  border-radius: 9px;
+  background: #2E7D32;        /* normální stůl = zelená */
+  color: #fff;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 10px 0;
+  text-align: center;
+}
+.acc-btn.warn { background: #7a5b00; }   /* „s sebou" = žlutá */
+#tables-empty { color: #888; padding: 0 16px; }
+#tables-entry { margin-top: auto; padding: 12px 16px max(16px, env(safe-area-inset-bottom)); background: #1a1a1a; }
+#table-num-display {
+  max-width: 340px; margin: 0 auto 10px;   /* zarovnané nad číselník, ne přes celý tablet */
+  text-align: center; font-size: 30px; background: #000;
+  border-radius: 8px; padding: 12px; min-height: 30px;
+}
+
+/* ── účet ── */
+#acct-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: #1a1a1a; flex: 0 0 auto;
+}
+#acct-bar .acct-table { font-size: 22px; font-weight: bold; color: #81c784; }   /* normální stůl = zelená */
+#acct-bar .acct-table.warn { color: #ffca28; }                                  /* „s sebou" = žlutá */
+#acct-bar .acct-total { margin-left: auto; font-size: 20px; font-weight: bold; color: #81c784; }
+#acct-bar button {
+  border: none; border-radius: 8px; padding: 10px 14px; font-size: 16px; font-weight: bold; color: #fff;
+}
+#btn-done { background: #2E7D32; }
+
+#acct-items { flex: 0 0 auto; max-height: 32dvh; overflow-y: auto; background: #101010; }
+.it-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #222; }
+.it-qty { color: #90a4ae; min-width: 34px; }
+.it-name { flex: 1; }
+.it-price { color: #b0bec5; font-size: 14px; }
+.it-del { border: none; background: #b71c1c; color: #fff; border-radius: 8px; width: 40px; height: 40px; font-size: 22px; }
+#acct-items-empty { color: #666; padding: 14px 12px; }
+
+#cat-tabs {
+  display: flex; gap: 6px; overflow-x: auto; padding: 8px 10px;
+  background: #181818; flex: 0 0 auto; white-space: nowrap;
+}
+.cat-tab { border: none; border-radius: 20px; padding: 8px 16px; font-size: 15px; color: #fff; background: #333; flex: 0 0 auto; }
+.cat-tab.active { outline: 2px solid #fff; }
+
+#prod-list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+.prod-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 14px; border-bottom: 1px solid #1f1f1f;
+}
+.prod-row:active { background: #222; }
+.prod-name { flex: 1; }
+.prod-price { color: #b0bec5; font-size: 15px; }
+.prod-plus { color: #81c784; font-size: 24px; font-weight: bold; }
+
+#toast {
+  position: fixed; bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+  background: #333; color: #fff; padding: 12px 20px; border-radius: 24px;
+  font-weight: bold; z-index: 200; max-width: 90vw; text-align: center;
+}
+#toast.err { background: #800202; }
+
+/* ── nízký displej (telefon naležato) → zmenšit, ať se vejde bez ořezu ── */
+@media (max-height: 560px) {
+  #lock h1 { font-size: 20px; }
+  #lock-display { font-size: 26px; padding: 10px; letter-spacing: 8px; }
+  .pad button { aspect-ratio: 2.2; }
+  #table-num-display { font-size: 24px; padding: 8px; }
+  #tables-entry { padding-top: 8px; }
+}
+
+[hidden] { display: none !important; }

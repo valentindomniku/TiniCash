@@ -301,7 +301,9 @@ function renderItems(items) {
   list.innerHTML = '';
   items.forEach(item => {
     const row = document.createElement('div');
-    row.className = 'item-row' + (item.id === selectedItemId ? ' selected' : '');
+    row.className = 'item-row'
+      + (item.print_kitchen ? ' to-kitchen' : ' no-kitchen')
+      + (item.id === selectedItemId ? ' selected' : '');
     row.innerHTML = `
       <span class="item-plu">${esc(item.product_id)}</span>
       <span class="item-name">${esc(item.name)}</span>

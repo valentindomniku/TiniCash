@@ -1,11 +1,5 @@
 'use strict';
 
-// ── TESTOVACÍ PŘEPÍNAČ ──
-// true  = přeskočí zadávání kódů (zámek při startu i kód uzávěrek/adminu) — pro testování
-// false = normální provoz, kódy se zadávají
-// PŘED NASAZENÍM NA KASU DÁT false!
-const SKIP_CODES = true;
-
 // Paleta na výběr v adminu; barvu si drží každá kategorie v DB (sloupec color).
 // Produkt bez kategorie (a dlaždice načtené podle PLU) padnou na výpočet z čísla.
 const CAT_COLORS = [
