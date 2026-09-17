@@ -156,8 +156,8 @@ async function loadOrder(order) {
   originalItemIds = new Set(items.map(i => i.id));
   newKitchenItems = [];
   voidedItems = [];
-  renderItems(items);
-  showAccount();
+  showAccount();     // nejdřív zobraz účet, ať je seznam viditelný…
+  renderItems(items); // …a scroll na poslední položku (zespodu) zabere
 }
 
 function showAccount() {
@@ -168,6 +168,8 @@ function showAccount() {
   tableEl.classList.toggle('warn', !isValidTable(tableNum));   // s sebou = žlutá, jinak zelená
   $('acct-total').textContent = currentOrder ? formatPrice(currentOrder.total_price) : formatPrice(0);
   if (!currentOrder) renderItems([]);
+  closeSearch();   // nový účet → vyhledávač sbalený
+  setHalf(false);  // i přepínač půlky
   loadCategories();
 }
 
@@ -184,7 +186,7 @@ function renderItems(items) {
   }
   items.forEach(item => {
     const row = document.createElement('div');
-    row.className = 'it-row';
+    row.className = 'it-row' + (item.print_kitchen ? ' to-kitchen' : ' no-kitchen');
     row.innerHTML =
       `<span class="it-qty">${formatQty(item.quantity)}×</span>` +
       `<span class="it-name">${esc(item.name)}</span>` +
@@ -203,14 +205,26 @@ function updateTotal() {
   $('acct-total').textContent = currentOrder ? formatPrice(currentOrder.total_price) : formatPrice(0);
 }
 
+// ── přepínač „půlka" (kopíruje chování tlačítka ½ na kase) ──
+let halfArmed = false;
+function setHalf(on) {
+  halfArmed = on;
+  $('btn-half').classList.toggle('armed', on);
+}
+function toggleHalf() {
+  setHalf(!halfArmed);
+}
+
 // ── přidání položky (kopíruje addToOrder z kasy) ──
 async function addToOrder(productId) {
+  const qty = halfArmed ? 0.5 : 1;   // přepínač ½ se spotřebuje hned (jako pendingQty na kase)
+  setHalf(false);
   try {
     if (!currentOrder) {
       currentOrder = await api('POST', '/orders', { table_number: selectedTable });
       selectedTable = null;
     }
-    const item = await api('POST', `/orders/${currentOrder.id}/items`, { product_id: productId, quantity: 1 });
+    const item = await api('POST', `/orders/${currentOrder.id}/items`, { product_id: productId, quantity: qty });
     if (item.print_kitchen) newKitchenItems.push(item);
     currentOrder = await api('GET', `/orders/${currentOrder.id}`);
     const items = await api('GET', `/orders/${currentOrder.id}/items`);
@@ -300,18 +314,26 @@ async function loadCategories() {
   tabs.dataset.loaded = '1';
 }
 
+let currentCatId = null;   // aktuálně zobrazená kategorie (kvůli obnově po zavření hledání)
+
 function selectCategory(catId, btn) {
   document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
+  closeSearch();             // přepnutí kategorie zavře vyhledávání
   showProducts(catId);
 }
 
-async function showProducts(catId) {
+function renderProducts(products) {
   const list = $('prod-list');
-  let products = [];
-  try { products = await api('GET', `/products?category=${encodeURIComponent(catId)}`); }
-  catch (e) { toast(e.message, true); return; }
   list.innerHTML = '';
+  if (!products.length) {
+    const e = document.createElement('div');
+    e.className = 'prod-row';
+    e.style.color = '#666';
+    e.textContent = 'Nic nenalezeno';
+    list.appendChild(e);
+    return;
+  }
   products.forEach(p => {
     const row = document.createElement('div');
     row.className = 'prod-row';
@@ -324,9 +346,55 @@ async function showProducts(catId) {
   });
 }
 
+async function showProducts(catId) {
+  currentCatId = catId;
+  let products = [];
+  try { products = await api('GET', `/products?category=${encodeURIComponent(catId)}`); }
+  catch (e) { toast(e.message, true); return; }
+  renderProducts(products);
+}
+
+// ── vyhledávání produktů napříč všemi kategoriemi ──
+let allProducts = null;   // načte se líně při prvním otevření hledání
+const normalize = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+async function ensureAllProducts() {
+  if (allProducts) return;
+  try { allProducts = await api('GET', '/products'); }   // bez parametrů = všechny aktivní
+  catch (e) { toast(e.message, true); allProducts = []; }
+}
+
+function runSearch() {
+  const term = normalize($('search-input').value.trim());
+  if (!term) { if (currentCatId != null) showProducts(currentCatId); return; }
+  renderProducts((allProducts || []).filter(p => normalize(p.name).includes(term)));
+}
+
+async function openSearch() {
+  await ensureAllProducts();
+  $('search-fab').classList.add('open');
+  $('search-input').focus();
+}
+
+function closeSearch() {
+  const fab = $('search-fab');
+  if (!fab.classList.contains('open')) return;
+  fab.classList.remove('open');
+  $('search-input').value = '';
+  if (currentCatId != null) showProducts(currentCatId);   // obnov aktuální kategorii
+}
+
+function toggleSearch() {
+  $('search-fab').classList.contains('open') ? closeSearch() : openSearch();
+}
+
 // ── start ──
 lockPad = makePad($('lock-pad'), $('lock-display'), { mask: true, onOk: submitLock });
 setupTablePad();
 loadSettings();
 if (SKIP_CODES) { $('lock').hidden = true; showTables(); }   // testování — bez zadávání kódu
 $('btn-done').addEventListener('click', closeAccount);
+$('btn-half').addEventListener('click', toggleHalf);
+$('search-toggle').addEventListener('click', toggleSearch);
+$('search-input').addEventListener('input', runSearch);
+$('search-clear').addEventListener('click', () => { $('search-input').value = ''; runSearch(); $('search-input').focus(); });

@@ -10,8 +10,8 @@ $chrome = @(
 
 $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 $kiosk = Join-Path $PSScriptRoot 'kiosk.ps1'
-$root = Split-Path $PSScriptRoot -Parent   # koren projektu (o slozku vyse)
-$icon = Join-Path $root 'logos\logo.ico'   # vlastni ikona kasy
+$root = Split-Path $PSScriptRoot -Parent          # koren projektu (o slozku vyse)
+$icon = Join-Path $root 'public\logos\logo.ico'   # vlastni ikona kasy (spolu s faviconem)
 $ws = New-Object -ComObject WScript.Shell
 
 $startup = [Environment]::GetFolderPath('Startup')
