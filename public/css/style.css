@@ -513,6 +513,37 @@ body {
   overflow-y: auto;
 }
 
+/* pager s šipkami pro přepínání mezi uzávěrkami (dny) */
+#modal-voids-pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+#modal-voids-period {
+  flex: 1;
+  text-align: center;
+  color: #bbb;
+  font-size: 15px;
+}
+.voids-arrow {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: #455A64;
+  color: #fff;
+  font-size: 26px;
+  font-weight: bold;
+  width: 52px;
+  height: 46px;
+  line-height: 1;
+  cursor: pointer;
+}
+.voids-arrow:active { filter: brightness(0.8); }
+.voids-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
 .modal-account-row {
   display: flex;
   align-items: center;

@@ -51,6 +51,8 @@ const BUTTONS = {
   'btn-uzaverka-mesice': doClosingMonth,
   'btn-uzaverka-polozkova': doClosingItems,
   'btn-uzaverka-majmun': openVoidsModal,
+  'voids-older': voidsOlder,
+  'voids-newer': voidsNewer,
   'btn-uzaverka-back': hideClosingPanel,
 
   // separace účtu a platba části

@@ -135,37 +135,58 @@ async function openTakeaway(n) {
 
 // ─── STORNA (Majmun) ──────────────────────────────────────
 
+let voidsPeriod = 0;   // 0 = poslední uzávěrka, vyšší číslo = starší dny
+
 async function openVoidsModal() {
-  const list = document.getElementById('modal-voids-list');
-  list.innerHTML = '';
-  let voids;
-  try { voids = await api('GET', '/voids/since-closing'); }
-  catch (e) { showToast(e.message, 'error'); return; }
-
-  if (voids.length === 0) {
-    list.innerHTML = '<div class="modal-empty">Žádná storna</div>';
-  } else {
-    voids.forEach(v => {
-      const when = fmtDateTime(v.voided_at);
-      const table = v.table_number ?? '—';
-      const sub = v.total_price != null
-        ? `účet ${formatPrice(v.total_price)} · stůl ${esc(table)} · ${when}`
-        : `<span class="mv-deleted">! celý účet smazán</span> · ${when}`;
-      const row = document.createElement('div');
-      row.className = 'modal-void-row';
-      row.innerHTML = `
-        <div class="mv-top">
-          <span class="mv-name">${formatQty(v.quantity)}× ${esc(v.name)}</span>
-          <span class="mv-amount">${formatPrice(v.unit_price * v.quantity)}</span>
-        </div>
-        <div class="mv-sub">${sub}</div>
-      `;
-      list.appendChild(row);
-    });
-  }
-
+  voidsPeriod = 0;
+  await loadVoids();
   show('modal-voids');
 }
+
+async function loadVoids() {
+  const list = document.getElementById('modal-voids-list');
+  list.innerHTML = '';
+  let data;
+  try { data = await api('GET', `/voids/since-closing?period=${voidsPeriod}`); }
+  catch (e) { showToast(e.message, 'error'); return; }
+
+  voidsPeriod = data.period;   // srovnej se stavem, který server povolil
+  document.getElementById('modal-voids-period').textContent = voidsPeriodLabel(data);
+  document.getElementById('voids-older').disabled = !data.hasOlder;
+  document.getElementById('voids-newer').disabled = !data.hasNewer;
+
+  if (data.voids.length === 0) {
+    list.innerHTML = '<div class="modal-empty">Žádná storna</div>';
+    return;
+  }
+  data.voids.forEach(v => {
+    const when = fmtDateTime(v.voided_at);
+    const table = v.table_number ?? '—';
+    const sub = v.total_price != null
+      ? `účet ${formatPrice(v.total_price)} · stůl ${esc(table)} · ${when}`
+      : `<span class="mv-deleted">! celý účet smazán</span> · ${when}`;
+    const row = document.createElement('div');
+    row.className = 'modal-void-row';
+    row.innerHTML = `
+      <div class="mv-top">
+        <span class="mv-name">${formatQty(v.quantity)}× ${esc(v.name)}</span>
+        <span class="mv-amount">${formatPrice(v.unit_price * v.quantity)}</span>
+      </div>
+      <div class="mv-sub">${sub}</div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+// nadpis období: rozsah od–do podle hranic uzávěrek
+function voidsPeriodLabel(data) {
+  if (!data.to) return 'Zatím neuzavřeno';
+  const to = fmtDateTime(data.to);
+  return data.from ? `${fmtDateTime(data.from)}  →  ${to}` : `do ${to}`;
+}
+
+const voidsOlder = () => { voidsPeriod++; loadVoids(); };            // doleva = starší den
+const voidsNewer = () => { if (voidsPeriod > 0) voidsPeriod--; loadVoids(); };   // doprava = novější
 
 const closeVoidsModal = () => hide('modal-voids');
 

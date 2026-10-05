@@ -753,12 +753,20 @@ app.get('/api/closing/last', h(async (req, res) => {
   res.json({ closed_at: rows.length ? rows[0].closed_at : null });
 }));
 
-// Storna poslední uzávěrky (mezi předposlední a poslední uzávěrkou).
-// Když ještě žádná uzávěrka nebyla, vrátí všechna dosavadní storna.
+// Storna jednoho uzavřeného období (dne). period=0 = poslední uzávěrka (výchozí),
+// vyšší period = starší dny. Vrací i meta pro šipky (hasOlder/hasNewer) a hranice období.
+// Bez jakékoli uzávěrky = jedno období se všemi dosavadními storny, bez šipek.
 app.get('/api/voids/since-closing', h(async (req, res) => {
-  const [closings] = await pool.query('SELECT closed_at FROM closings ORDER BY closed_at DESC LIMIT 2');
-  const upper = closings.length ? closings[0].closed_at : null;
-  const lower = closings.length > 1 ? closings[1].closed_at : new Date(0);
+  const [closings] = await pool.query('SELECT closed_at FROM closings ORDER BY closed_at DESC');
+  const n = closings.length;
+  const total = Math.max(n, 1);   // počet uzavřených období (bez uzávěrek = 1 „vše")
+
+  let period = parseInt(req.query.period, 10);
+  if (!Number.isInteger(period) || period < 0) period = 0;
+  if (period > total - 1) period = total - 1;
+
+  const upper = n ? closings[period].closed_at : null;                 // konec období (uzávěrka)
+  const lower = (period + 1 < n) ? closings[period + 1].closed_at : null; // začátek; null = od začátku
 
   let sql =
     `SELECT v.quantity, v.unit_price, v.voided_at, p.name, o.table_number, o.total_price
@@ -766,12 +774,19 @@ app.get('/api/voids/since-closing', h(async (req, res) => {
      JOIN products p ON v.product_id = p.id
      LEFT JOIN orders o ON v.order_id = o.id
      WHERE v.voided_at > ?`;
-  const params = [lower];
+  const params = [lower ?? new Date(0)];
   if (upper) { sql += ' AND v.voided_at <= ?'; params.push(upper); }
   sql += ' ORDER BY v.voided_at DESC';
 
   const [rows] = await pool.query(sql, params);
-  res.json(rows);
+  res.json({
+    voids: rows,
+    period,
+    hasNewer: period > 0,            // doprava (novější den)
+    hasOlder: period < total - 1,    // doleva (starší den)
+    from: lower,                     // null = od začátku
+    to: upper,                       // null = zatím žádná uzávěrka
+  });
 }));
 
 // Reprint last receipt
