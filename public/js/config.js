@@ -4,4 +4,4 @@
 // true  = přeskočí zadávání kódů — zámek kasy, kód uzávěrek/adminu i zámek číšníka
 // false = normální provoz, kódy se zadávají
 // PŘED NASAZENÍM NA KASU DÁT false!
-const SKIP_CODES = true;
+const SKIP_CODES = false;

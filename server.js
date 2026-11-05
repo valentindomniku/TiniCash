@@ -97,9 +97,9 @@ const RAWPRINT_PS = path.join(__dirname, 'scripts', 'rawprint.ps1');
 const ESC_INIT = '\x1B\x40';      // ESC @  — inicializace tiskárny
 const PAPER_CUT = '\x1D\x56\x00'; // GS V 0 — plný střih papíru
 const TICKET_SIZE = '\x1D\x21\x11'; // GS ! 0x11 — 2× výška i šířka (kuchyňský/storno lístek)
-// Zvýraznění CELKEM markery v textu:
-//   \x01/\x02 = 2× VÝŠKA + tučně (uzávěrky — řádek v plné šířce, částka vpravo)
-//   \x03/\x04 = 2× VÝŠKA I ŠÍŘKA + tučně (účtenka — kompaktní, větší)
+// Zvýraznění markery v textu (oba reset přes EMPH_OFF = GS ! 0x00):
+//   \x01/\x02 = 2× VÝŠKA + tučně (lehčí varianta, řádek v plné šířce PRINT_WIDTH) — teď se nepoužívá
+//   \x03/\x04 = 2× VÝŠKA I ŠÍŘKA + tučně (CELKEM a UCET# na účtence i uzávěrkách; odsazení na HALF_WIDTH)
 const EMPH_ON = '\x1D\x21\x01\x1B\x45\x01';
 const EMPH_OFF = '\x1B\x45\x00\x1D\x21\x00';
 const BIG_ON = '\x1D\x21\x11\x1B\x45\x01';
@@ -473,12 +473,16 @@ const fmtCz = v => Number(v).toFixed(2).replace('.', ',');
 const fmtDateCz = d => d.toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const fmtTimeCz = d => d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-// Zvýrazněný řádek přes celou šířku: 2× výška + tučně (marker \x01/\x02),
-// takže se popisek i částka zarovnají stejně jako ostatní řádky.
-const bigTotalLine = (label, amount) => `\x01${padLine(label, amount)}\x02`;
+// Zvýrazněný řádek: 2× VÝŠKA I ŠÍŘKA + tučně (marker \x03/\x04). U 2× širokého
+// písma se na papír vejde jen půlka znaků, proto se odsazuje na HALF_WIDTH —
+// jinak by řádek přetekl a zalomil se. Popisek vlevo, částka/UCET# u pravého kraje.
+const HALF_WIDTH = Math.floor(PRINT_WIDTH / 2);
+const padHalf = (left, right) =>
+  left + ' '.repeat(Math.max(1, HALF_WIDTH - left.length - right.length)) + right;
+const bigTotalLine = (label, amount) => `\x03${padHalf(label, amount)}\x04`;
 
 // Číslo účtu vpravo u kraje, stejným zvýrazněním jako CELKEM
-const bigRightLine = text => `\x01${text.padStart(PRINT_WIDTH)}\x02`;
+const bigRightLine = text => `\x03${text.padStart(HALF_WIDTH)}\x04`;
 
 // Hlavička provozovny (z nastavení) — stejná na účtence i na uzávěrkách
 const headLines = () => [
