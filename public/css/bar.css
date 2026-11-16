@@ -1,0 +1,54 @@
+/* ── TiniCash — barový displej (bar.html) ── */
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: #000;
+  color: #fff;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+/* mřížka karet — prázdná obrazovka, když nic nečeká */
+#cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+
+.bar-card {
+  background: #15181a;
+  border: 1px solid #2a2f33;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.12s;
+}
+.bar-card:active { filter: brightness(0.8); }
+
+.bar-card-head {
+  background: #2E7D32;
+  color: #fff;
+  font-size: 40px;
+  font-weight: bold;
+  text-align: center;
+  padding: 10px 8px;
+  line-height: 1.1;
+}
+
+.bar-card-list { padding: 6px 16px 14px; }
+.bar-item {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px solid #22262a;
+  font-size: 23px;
+}
+.bar-item:last-child { border-bottom: none; }
+.bar-qty { color: #9ccc65; font-weight: bold; min-width: 48px; }
+.bar-name { flex: 1; }

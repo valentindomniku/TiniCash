@@ -48,10 +48,7 @@ async function loadSettings() {
 }
 loadSettings().catch(e => console.error('Načtení nastavení selhalo:', e.message));
 
-// Kód pro odemčení kasy při startu (ochrana, kdyby se někdo připojil na stejnou WiFi)
-const STARTUP_CODE = process.env.STARTUP_CODE || '374186';
-
-// Kód pro uzávěrky a administraci (dříve PIN majitele v tabulce owner)
+// Kód pro uzávěrky a administraci (jediné heslo v systému; dříve PIN majitele v tabulce owner)
 const CLOSING_CODE = process.env.CLOSING_CODE || '963214';
 
 // ─── PRÁCE S OBJEDNÁVKOU ───
@@ -277,6 +274,11 @@ app.post('/api/orders/:id/items', h(async (req, res) => {
   );
   const itemId = result.insertId;
 
+  // pití (netiskne se do kuchyně) → rovnou na barový displej (bar.html)
+  if (!products[0].print_kitchen) {
+    await pool.query('INSERT INTO bar_queue (order_item_id) VALUES (?)', [itemId]);
+  }
+
   await recalcOrderTotal(orderId);
 
   const [items] = await pool.query(
@@ -317,6 +319,34 @@ app.delete('/api/orders/:id/items/:itemId', h(async (req, res) => {
 // Delete order
 app.delete('/api/orders/:id', h(async (req, res) => {
   await pool.query('DELETE FROM orders WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+}));
+
+// ─── BAROVÝ DISPLEJ (bar.html) ───
+// Pití (print_kitchen=0) čekající na výrobu; klient si je seskupí podle stolu.
+app.get('/api/bar/queue', h(async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT o.table_number, oi.id AS item_id, oi.product_id, oi.quantity, p.name, bq.created_at
+     FROM bar_queue bq
+     JOIN order_items oi ON bq.order_item_id = oi.id
+     JOIN orders o       ON oi.order_id = o.id
+     JOIN products p     ON oi.product_id = p.id
+     ORDER BY bq.created_at, o.table_number`
+  );
+  res.json(rows);
+}));
+
+// Barman odklikl stůl → smaž všechna jeho pití z fronty (účet ani útratu to nemění)
+app.post('/api/bar/clear', h(async (req, res) => {
+  const table = parseInt(req.body.table, 10);
+  if (!Number.isInteger(table)) return res.status(400).json({ error: 'Chybí stůl' });
+  await pool.query(
+    `DELETE bq FROM bar_queue bq
+     JOIN order_items oi ON bq.order_item_id = oi.id
+     JOIN orders o       ON oi.order_id = o.id
+     WHERE o.table_number = ?`,
+    [table]
+  );
   res.json({ success: true });
 }));
 
@@ -589,14 +619,9 @@ app.put('/api/admin/settings', h(async (req, res) => {
   res.json({ success: true });
 }));
 
-// Ověření kódu pro uzávěrky
+// Ověření kódu pro uzávěrky/admin
 app.post('/api/verify-pin', (req, res) => {
   res.json({ valid: req.body.pin === CLOSING_CODE });
-});
-
-// Ověření kódu pro odemčení kasy při startu
-app.post('/api/verify-startup', (req, res) => {
-  res.json({ valid: req.body.code === STARTUP_CODE });
 });
 
 

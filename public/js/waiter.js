@@ -75,24 +75,6 @@ function makePad(padEl, displayEl, { maxLen = 6, mask = false, onOk }) {
   return { clear() { value = ''; render(); } };
 }
 
-// ── zámek (kód kasy, stejné ověření jako při startu) ──
-let lockPad = null;
-async function submitLock(code) {
-  if (!code) return;
-  let valid;
-  try { ({ valid } = await api('POST', '/verify-startup', { code })); }
-  catch { valid = false; }
-  lockPad.clear();
-  if (valid) {
-    $('lock').hidden = true;
-    showTables();
-  } else {
-    const err = $('lock-error');
-    err.textContent = 'Špatný kód';
-    setTimeout(() => { err.textContent = ''; }, 2000);
-  }
-}
-
 // ── stav otevřeného účtu (kopíruje kasu) ──
 let currentOrder = null;
 let selectedTable = null;
@@ -297,6 +279,10 @@ async function closeAccount() {
 }
 
 // ── produkty ──
+const categoriesById = {};   // meta kategorií (kvůli příznaku numbered)
+// skupina produktu = pořadí i název; změna jednoho z nich = nová skupina (jako na kase)
+const groupKey = p => `${p.sort_order ?? ''}|${p.sort_group ?? ''}`;
+
 async function loadCategories() {
   const tabs = $('cat-tabs');
   if (tabs.dataset.loaded) return;   // kategorie se nemění, načti jen jednou
@@ -304,6 +290,7 @@ async function loadCategories() {
   try { cats = await api('GET', '/categories'); } catch (e) { toast(e.message, true); return; }
   tabs.innerHTML = '';
   cats.forEach((c, i) => {
+    categoriesById[c.id] = c;
     const b = document.createElement('button');
     b.className = 'cat-tab';
     b.textContent = c.name;
@@ -338,7 +325,7 @@ function renderProducts(products) {
     const row = document.createElement('div');
     row.className = 'prod-row';
     row.innerHTML =
-      `<span class="prod-name">${esc(p.name)}</span>` +
+      `<span class="prod-name">${esc(p._label ?? p.name)}</span>` +
       `<span class="prod-price">${formatPrice(p.price)}</span>` +
       `<span class="prod-plus">＋</span>`;
     row.addEventListener('click', () => addToOrder(p.id));
@@ -351,7 +338,22 @@ async function showProducts(catId) {
   let products = [];
   try { products = await api('GET', `/products?category=${encodeURIComponent(catId)}`); }
   catch (e) { toast(e.message, true); return; }
+  // číslovaná kategorie (numbered=1) → místo názvu „SKUPINA pořadí" nebo holé číslo, jako na kase
+  if (categoriesById[catId]?.numbered) applyNumberedLabels(products);
   renderProducts(products);
+}
+
+// Popisky číslované kategorie: se skupinou „PIZZA 3", bez skupiny holé pořadí v celé kategorii.
+// Změna skupiny (sort_order/sort_group) resetuje počítadlo uvnitř skupiny — stejně jako kasa.
+function applyNumberedLabels(products) {
+  let lastKey, groupCount = 0, catCount = 0;
+  products.forEach(p => {
+    const key = groupKey(p);
+    if (lastKey !== undefined && key !== lastKey) groupCount = 0;
+    lastKey = key;
+    groupCount++; catCount++;
+    p._label = p.sort_group ? `${p.sort_group} ${groupCount}` : String(catCount);
+  });
 }
 
 // ── vyhledávání produktů napříč všemi kategoriemi ──
@@ -389,10 +391,8 @@ function toggleSearch() {
 }
 
 // ── start ──
-lockPad = makePad($('lock-pad'), $('lock-display'), { mask: true, onOk: submitLock });
 setupTablePad();
-loadSettings();
-if (SKIP_CODES) { $('lock').hidden = true; showTables(); }   // testování — bez zadávání kódu
+loadSettings().finally(showTables);   // žádný zámek — rovnou na stoly (až po načtení nastavení)
 $('btn-done').addEventListener('click', closeAccount);
 $('btn-half').addEventListener('click', toggleHalf);
 $('search-toggle').addEventListener('click', toggleSearch);

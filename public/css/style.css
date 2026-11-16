@@ -752,14 +752,29 @@ body {
 }
 
 .sep-row {
+  position: relative;
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  padding: 14px 16px;
+  padding: 14px 16px 14px 20px;   /* vlevo místo pro proužek */
   border-bottom: 1px solid #222;
   color: #fff;
   font-size: 20px;
 }
+
+/* proužek jako v účtu: modrá = tiskne do kuchyně, zelená = netiskne (bar) */
+.sep-row.to-kitchen::before,
+.sep-row.no-kitchen::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 8px;
+  bottom: 8px;
+  width: 6px;
+  border-radius: 3px;
+}
+.sep-row.to-kitchen::before { background: #2196f3; }
+.sep-row.no-kitchen::before { background: #38843a; }
 
 #sep-src-list .sep-row {
   cursor: pointer;
@@ -862,52 +877,6 @@ body {
 
 #items-list::-webkit-scrollbar-thumb:hover {
   background: #888;
-}
-
-/* ─── ZÁMEK PŘI STARTU ─── */
-#lock-screen {
-  position: fixed;
-  inset: 0;
-  background: #0d0d0d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-#lock-screen.hidden {
-  display: none;
-}
-
-.lock-box {
-  width: 440px;
-  max-width: 92vw;
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 12px;
-  padding: 28px 24px 24px;
-}
-
-.lock-title {
-  font-size: 34px;
-  font-weight: bold;
-  color: #fff;
-  text-align: center;
-  letter-spacing: 1px;
-}
-
-#lock-display {
-  --np-display-size: 38px;
-  --np-display-spacing: 14px;
-  padding: 18px;
-  border-radius: 8px;
-  margin: 18px 0 6px;
-}
-
-#lock-numpad {
-  --np-gap: 10px;
-  --np-radius: 8px;
-  --np-btn-size: 30px;
 }
 
 /* ─── ADMIN ─── */

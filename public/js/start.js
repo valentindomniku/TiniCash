@@ -75,7 +75,6 @@ const BUTTONS = {
   'shutdown-confirm': doShutdown,
 };
 
-setupLockScreen();
 setupNumpad();
 setupPinModal();
 setupSepNumModal();

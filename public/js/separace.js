@@ -21,7 +21,34 @@ function toSepLines(items) {
     name: it.name,
     unit_price: Number(it.unit_price),
     quantity: Number(it.quantity),
+    print_kitchen: it.print_kitchen,   // kvůli barevnému proužku (modrá kuchyň / zelená bar)
   }));
+}
+
+// Bar/kuchyň (ručně zadaná cena, produkty BAR_PRODUCT_ID/KUCHYN_PRODUCT_ID) se NIKDY neslučují —
+// i stejná cena může být pokaždé něco jiného. Stejně tak půlky (neceločíselné množství).
+const NO_MERGE_IDS = new Set([BAR_PRODUCT_ID, KUCHYN_PRODUCT_ID]);
+const sepMergeable = it => Number.isInteger(it.quantity) && !NO_MERGE_IDS.has(it.product_id);
+
+// Seřadí tak, aby produkty, co se netisknou do kuchyně (bar), byly nahoře.
+// Stabilní řazení → uvnitř skupin zůstane původní pořadí.
+function sortBarFirst(lines) {
+  lines.sort((a, b) => (a.print_kitchen ? 1 : 0) - (b.print_kitchen ? 1 : 0));
+}
+
+// Pro platbu části účtu i separaci: celé kusy stejného produktu (a stejné ceny) sluč do jednoho
+// řádku (3× alcapone); půlky i bar/kuchyň nech každou zvlášť.
+function groupWholeLines(lines) {
+  const out = [];
+  const wholeByKey = new Map();   // "product_id|unit_price" -> sloučený řádek
+  lines.forEach(it => {
+    if (!sepMergeable(it)) { out.push({ ...it, uid: sepUid() }); return; }   // půlka / bar / kuchyň → zvlášť
+    const key = `${it.product_id}|${it.unit_price}`;
+    const ex = wholeByKey.get(key);
+    if (ex) ex.quantity += it.quantity;
+    else { const line = { ...it, uid: sepUid() }; wholeByKey.set(key, line); out.push(line); }
+  });
+  return out;
 }
 
 // Připraví položky k odeslání na server (jen potřebná pole)
@@ -68,13 +95,15 @@ async function openSepModal(mode, target) {
   sepSelectedUid = null;
   sepHistory = [];
 
-  sepSource = toSepLines(await api('GET', `/orders/${sepSourceOrderId}/items`));
+  // celé kusy pohromadě (3× alcapone), půlky i bar/kuchyň zvlášť — v platbě části účtu i separaci
+  sepSource = groupWholeLines(toSepLines(await api('GET', `/orders/${sepSourceOrderId}/items`)));
+  if (mode === 'partpay') sortBarFirst(sepSource);   // v platbě části účtu: co se netiskne do kuchyně, nahoru
 
   // u separace předvyplnit položky cílového účtu, pokud už existuje
   sepTarget = [];
   if (target != null) {
     const dstOrder = await api('GET', `/orders/table/${target}`);
-    if (dstOrder) sepTarget = toSepLines(await api('GET', `/orders/${dstOrder.id}/items`));
+    if (dstOrder) sepTarget = groupWholeLines(toSepLines(await api('GET', `/orders/${dstOrder.id}/items`)));
   }
 
   const partpay = mode === 'partpay';
@@ -143,7 +172,9 @@ const partPay = type => sepSubmit('partial-pay', {
 
 function makeSepRow(it, selectable) {
   const row = document.createElement('div');
-  row.className = 'sep-row' + (selectable && it.uid === sepSelectedUid ? ' selected' : '');
+  row.className = 'sep-row'
+    + (it.print_kitchen ? ' to-kitchen' : ' no-kitchen')
+    + (selectable && it.uid === sepSelectedUid ? ' selected' : '');
   row.innerHTML = `
     <span>${formatQty(it.quantity)}× ${esc(it.name)}</span>
     <span>${formatPrice(it.unit_price * it.quantity)}</span>
@@ -166,9 +197,14 @@ function renderSepLists() {
   sepTarget.forEach(it => dstList.appendChild(makeSepRow(it, false)));
 }
 
-// Nový řádek na druhé straně (NESLUČUJE — každý přesun je samostatný řádek)
+// Nový řádek na druhé straně. Sluč celé kusy stejného produktu (a ceny) do jednoho řádku
+// (platba části účtu i separace); půlky (neceločíselné) a bar/kuchyň mají vždy samostatný řádek.
 function sepPushLine(list, it, amount) {
-  list.push({ uid: sepUid(), product_id: it.product_id, name: it.name, unit_price: it.unit_price, quantity: amount });
+  if (Number.isInteger(amount) && !NO_MERGE_IDS.has(it.product_id)) {
+    const ex = list.find(o => o.product_id === it.product_id && o.unit_price === it.unit_price && Number.isInteger(o.quantity));
+    if (ex) { ex.quantity += amount; return; }
+  }
+  list.push({ uid: sepUid(), product_id: it.product_id, name: it.name, unit_price: it.unit_price, quantity: amount, print_kitchen: it.print_kitchen });
 }
 
 // Historie pro krok zpět (tlačítko "<")

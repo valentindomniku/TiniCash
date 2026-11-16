@@ -779,6 +779,20 @@ ALTER TABLE `order_items`
 ALTER TABLE `product_categories`
   ADD CONSTRAINT `fk_pc_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `product_categories_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE CASCADE;
+
+-- --------------------------------------------------------
+
+--
+-- Struktura tabulky `bar_queue` (barový displej bar.html)
+-- Jen odkaz na položku účtu; ON DELETE CASCADE = storno na účtu smaže pití i z baru.
+-- Až za order_items, aby FK na order_items(id) prošel.
+--
+CREATE TABLE `bar_queue` (
+  `order_item_id` int(11) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`order_item_id`),
+  CONSTRAINT `fk_bq_item` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

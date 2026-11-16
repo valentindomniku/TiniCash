@@ -88,6 +88,18 @@ CREATE TABLE order_items (
 );
 
 -- -----------------------------------------------------
+-- Barová fronta (displej bar.html): pití (print_kitchen=0), co čeká na výrobu.
+-- Jen odkaz na položku účtu — název/množství/stůl se dotahuje JOINem.
+-- ON DELETE CASCADE: storno položky na účtu ji smaže i z baru.
+-- -----------------------------------------------------
+CREATE TABLE bar_queue (
+  order_item_id INT      NOT NULL,
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (order_item_id),
+  CONSTRAINT fk_bq_item FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE
+);
+
+-- -----------------------------------------------------
 -- Storna (co se smazalo z už rozepsaného účtu).
 -- quantity je 1 u celého kusu, 0.50 u půlky.
 -- -----------------------------------------------------
