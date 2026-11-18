@@ -1,7 +1,7 @@
 {
-  "name": "tinikasa",
-  "version": "1.0.0",
-  "description": "Restaurant POS",
+  "name": "TiniCash",
+  "version": "5.0.2",
+  "description": "Cash system for restaurant",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

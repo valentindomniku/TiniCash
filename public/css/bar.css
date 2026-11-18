@@ -14,7 +14,7 @@ body {
 /* mřížka karet — prázdná obrazovka, když nic nečeká */
 #cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   align-content: start;
 }
@@ -28,7 +28,9 @@ body {
   user-select: none;
   transition: opacity 0.12s;
 }
-.bar-card:active { filter: brightness(0.8); }
+.bar-card:active { 
+  filter: brightness(0.8); 
+}
 
 .bar-card-head {
   background: #2E7D32;
@@ -40,15 +42,17 @@ body {
   line-height: 1.1;
 }
 
-.bar-card-list { padding: 6px 16px 14px; }
+.bar-card-list { 
+  padding: 6px; 
+}
+
 .bar-item {
   display: flex;
   gap: 12px;
   align-items: baseline;
-  padding: 9px 0;
-  border-bottom: 1px solid #22262a;
+  padding: 12px;
+  border-bottom: 2px solid #22262a;
   font-size: 23px;
 }
 .bar-item:last-child { border-bottom: none; }
 .bar-qty { color: #9ccc65; font-weight: bold; min-width: 48px; }
-.bar-name { flex: 1; }

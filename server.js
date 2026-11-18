@@ -979,5 +979,8 @@ app.post('/api/shutdown', (req, res) => {
   }, 400);
 });
 
+const { version } = require('./package.json');
+app.get('/api/version', (req, res) => res.json({ version }));
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`TiniCash bezi na http://localhost:${PORT}`));

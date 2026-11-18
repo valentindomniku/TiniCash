@@ -301,7 +301,12 @@
         <div>Backend powered by <span>TINI Industries</span></div>
         <div>Database engineered by <span>TINI Enterprise</span></div>
         <div class="credits-made">MADE BY TINI</div>
-        <div>TiniCash Verze 5.0.1</div>
+        <div>TiniCash <span id="app-version"></span>
+<script>
+  fetch('/api/version')
+    .then(r => r.json())
+    .then(d => document.getElementById('app-version').textContent = 'v' + d.version);
+</script></div>
       </div>
       <button id="modal-credits-close" class="act act-gray modal-close-btn">Zavřít</button>
     </div>
