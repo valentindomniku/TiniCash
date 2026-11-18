@@ -979,6 +979,7 @@ app.post('/api/shutdown', (req, res) => {
   }, 400);
 });
 
+// získání verze z package.json aby se vypsala v indexu
 const { version } = require('./package.json');
 app.get('/api/version', (req, res) => res.json({ version }));
 

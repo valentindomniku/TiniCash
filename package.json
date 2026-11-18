@@ -1,6 +1,6 @@
 {
   "name": "TiniCash",
-  "version": "5.0.2",
+  "version": "5.0.3",
   "description": "Cash system for restaurant",
   "main": "server.js",
   "scripts": {
