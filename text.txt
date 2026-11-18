@@ -1,6 +1,0 @@
-CREATE TABLE bar_queue (
-  order_item_id INT      NOT NULL,
-  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (order_item_id),
-  CONSTRAINT fk_bq_item FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE
-);
