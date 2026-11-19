@@ -85,9 +85,9 @@ button {
 }
 
 .acc-btn {
-  flex: 1 1 64px;
+  flex: 1 1 100px;
   /* rovnoměrně vyplní řádek na každé šířce */
-  max-width: 120px;
+  max-width: 190px;
   border: none;
   border-radius: 9px;
   background: #2E7D32;
@@ -95,7 +95,7 @@ button {
   color: #fff;
   font-size: 20px;
   font-weight: bold;
-  padding: 10px 0;
+  padding: 16px 10px;
   text-align: center;
 }
 

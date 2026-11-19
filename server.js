@@ -598,6 +598,12 @@ app.post('/api/print/receipt', h(async (req, res) => {
 
   await pool.query('UPDATE orders SET status = "closed", closed_at = NOW(), payment_type = ? WHERE id = ?', [payType, orderId]);
 
+  // zaplacený účet → smaž jeho pití z barového displeje (bar.html)
+  await pool.query(
+    'DELETE bq FROM bar_queue bq JOIN order_items oi ON bq.order_item_id = oi.id WHERE oi.order_id = ?',
+    [orderId]
+  );
+
   res.json({ success: true });
 }));
 

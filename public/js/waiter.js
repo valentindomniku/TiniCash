@@ -97,12 +97,13 @@ async function showTables() {
   showScreen('view-tables');
   let orders = [];
   try { orders = await api('GET', '/orders'); } catch (e) { toast(e.message, true); }
+  orders = orders.filter(o => isValidTable(o.table_number));   // žluté účty (s sebou, 18 atd.) ve waiteru neukazuj
   const box = $('open-accounts');
   box.innerHTML = '';
   $('tables-empty').hidden = orders.length > 0;
   orders.forEach(o => {
     const b = document.createElement('button');
-    b.className = 'acc-btn' + (isValidTable(o.table_number) ? '' : ' warn');
+    b.className = 'acc-btn';   // zůstávají jen platné stoly → vždy zelené
     b.textContent = o.table_number;
     b.addEventListener('click', () => openTable(o.table_number));
     box.appendChild(b);
