@@ -1,13 +1,15 @@
 {
   "name": "TiniCash",
-  "version": "5.0.4",
-  "description": "Cash system for restaurant",
-  "main": "server.js",
+  "version": "6.0.0",
+  "description": "POS system for restaurants with EET 2.0 support",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "mysql2": "^3.6.0"
+    "mysql2": "^3.6.0",
+    "node-forge": "^1.4.3",
+    "xml-crypto": "^6.4.0"
   }
 }

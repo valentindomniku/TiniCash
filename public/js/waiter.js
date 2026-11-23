@@ -93,14 +93,12 @@ function resetState() {
 }
 
 // ── výběr stolu ──
-async function showTables() {
-  showScreen('view-tables');
-  let orders = [];
-  try { orders = await api('GET', '/orders'); } catch (e) { toast(e.message, true); }
-  orders = orders.filter(o => isValidTable(o.table_number));   // žluté účty (s sebou, 18 atd.) ve waiteru neukazuj
+let tablesSig = null;   // kvůli auto-obnově: překresli jen při změně
+
+function renderOpenAccounts(orders) {
+  tablesSig = orders.map(o => o.table_number).join(',');
   const box = $('open-accounts');
   box.innerHTML = '';
-  $('tables-empty').hidden = orders.length > 0;
   orders.forEach(o => {
     const b = document.createElement('button');
     b.className = 'acc-btn';   // zůstávají jen platné stoly → vždy zelené
@@ -108,6 +106,23 @@ async function showTables() {
     b.addEventListener('click', () => openTable(o.table_number));
     box.appendChild(b);
   });
+}
+
+async function showTables() {
+  showScreen('view-tables');
+  let orders = [];
+  try { orders = await api('GET', '/orders'); } catch (e) { toast(e.message, true); }
+  renderOpenAccounts(orders.filter(o => isValidTable(o.table_number)));   // žluté účty (s sebou) neukazuj
+}
+
+// Auto-obnova seznamu stolů (jako bar.html) — jen když jsme na obrazovce se stoly a jen při změně
+async function pollTables() {
+  if (!$('view-tables').classList.contains('active')) return;
+  let orders = [];
+  try { orders = await api('GET', '/orders'); } catch { return; }
+  orders = orders.filter(o => isValidTable(o.table_number));
+  if (orders.map(o => o.table_number).join(',') === tablesSig) return;   // nic se nezměnilo
+  renderOpenAccounts(orders);
 }
 
 let tablePad = null;
@@ -314,6 +329,7 @@ function selectCategory(catId, btn) {
 function renderProducts(products) {
   const list = $('prod-list');
   list.innerHTML = '';
+  list.scrollTop = 0;   // při přepnutí kategorie / hledání vždy zpět nahoru
   if (!products.length) {
     const e = document.createElement('div');
     e.className = 'prod-row';
@@ -394,6 +410,7 @@ function toggleSearch() {
 // ── start ──
 setupTablePad();
 loadSettings().finally(showTables);   // žádný zámek — rovnou na stoly (až po načtení nastavení)
+setInterval(pollTables, 3000);        // auto-obnova seznamu stolů (jako bar.html)
 $('btn-done').addEventListener('click', closeAccount);
 $('btn-half').addEventListener('click', toggleHalf);
 $('search-toggle').addEventListener('click', toggleSearch);

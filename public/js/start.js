@@ -17,9 +17,6 @@ function addByPlu() {
   const productId = parseInt(displayValue);
   if (productId) quickAdd(productId);   // bez otevřeného účtu se ukáže toast (řeší addToOrder)
 }
-async function printReceiptCopy() {
-  try { await api('POST', '/print/receipt/copy'); } catch (e) { showToast(e.message, 'error'); }
-}
 async function deleteSelectedItem() {   // bez označené položky smaže poslední na účtu
   const itemId = selectedItemId ?? currentItems[currentItems.length - 1]?.id;
   if (currentOrder && itemId) await deleteItem(itemId);
@@ -36,13 +33,12 @@ const BUTTONS = {
   'btn-half': setHalfQty,
   'btn-inf': deleteSelectedItem,
   'btn-otevrene-ucty': openAccountsModal,
-  'btn-kopie': printReceiptCopy,
+  'btn-kopie': openReceiptsModal,
   'btn-vypnout': openShutdownModal,
 
   // platba
   'pay-btn': () => { if (currentOrder) showPaymentPanel(); },
   'btn-pay-cash': () => handlePayment('cash'),
-  'btn-pay-takeaway': () => handlePayment('takeaway'),
   'btn-pay-back': hidePaymentPanel,
 
   // uzávěrky (panel je za PINem)
@@ -65,10 +61,10 @@ const BUTTONS = {
   'sep-cancel': closeSeparateModal,
   'sep-pay-back': showSepMainActions,
   'sep-pay-cash': () => partPay('cash'),
-  'sep-pay-takeaway': () => partPay('takeaway'),
 
   // zavírání oken
   'modal-accounts-close': closeAccountsModal,
+  'modal-receipts-close': closeReceiptsModal,
   'modal-credits-close': closeCreditsModal,
   'modal-voids-close': closeVoidsModal,
   'shutdown-cancel': closeShutdownModal,

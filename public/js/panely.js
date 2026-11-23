@@ -107,6 +107,39 @@ async function openAccountsModal() {
 
 const closeAccountsModal = () => hide('modal-accounts');
 
+// ─── KOPIE ÚČTENKY (posledních 10 zaplacených účtů) ───
+
+async function openReceiptsModal() {
+  const list = document.getElementById('modal-receipts-list');
+  list.innerHTML = '';
+  let orders;
+  try { orders = await api('GET', '/orders/closed/recent'); }
+  catch (e) { showToast(e.message, 'error'); return; }
+
+  if (!orders.length) {
+    list.innerHTML = '<div class="modal-empty">Žádné zaplacené účty</div>';
+  } else {
+    orders.forEach(order => {
+      const row = document.createElement('div');
+      row.className = 'modal-receipt-row';
+      row.innerHTML = `
+        <span class="r-table">${esc(order.table_number)}</span>
+        <span class="r-total">${formatPrice(order.total_price)}</span>
+        <span class="r-when">${fmtDateTime(order.closed_at)}</span>
+      `;
+      row.addEventListener('click', async () => {
+        closeReceiptsModal();
+        try { await api('POST', `/orders/${order.id}/reprint`); showToast('Účtenka vytištěna'); }
+        catch (e) { showToast(e.message, 'error'); }
+      });
+      list.appendChild(row);
+    });
+  }
+  show('modal-receipts');
+}
+
+const closeReceiptsModal = () => hide('modal-receipts');
+
 // ─── LIŠTA "S SEBOU" (dole vlevo) ─────────────────────────
 
 async function refreshTakeawayBar() {

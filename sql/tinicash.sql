@@ -148,3 +148,31 @@ INSERT INTO settings (skey, svalue) VALUES
   ('shop_phone',       '+420 466 959 048'),
   ('takeaway_numbers', '16,17,18,19,23,24,25'),
   ('valid_tables',     '1-15,20-22,101-117');
+
+-- -----------------------------------------------------
+-- EET 2.0 — záznam o odeslané tržbě (jedna řádka na platbu)
+--   stav: ceka = ve frontě, odeslano = přijato (pok/FIK), chyba = odmítnuto
+--   bez FK na orders: záznam se drží i po smazání objednávky (audit)
+-- -----------------------------------------------------
+CREATE TABLE eet_sales (
+  id            INT           NOT NULL AUTO_INCREMENT,
+  order_id      INT           NOT NULL,
+  porad_cis     VARCHAR(25)   NOT NULL,              -- pořadové číslo účtenky = id objednávky
+  uuid_zpravy   CHAR(36)      NOT NULL,
+  dat_trzby     DATETIME      NOT NULL,
+  celk_trzba    DECIMAL(10, 2) NOT NULL,
+  overeni       TINYINT(1)    NOT NULL DEFAULT 0,    -- ověřovací mód
+  prvni_zaslani TINYINT(1)    NOT NULL DEFAULT 1,
+  stav          ENUM('ceka', 'odeslano', 'chyba') NOT NULL DEFAULT 'ceka',
+  pok           VARCHAR(39)   DEFAULT NULL,          -- POK/FIK z potvrzení
+  test_odpoved  TINYINT(1)    DEFAULT NULL,          -- test="true" z odpovědi (Playground)
+  kod_chyby     INT           DEFAULT NULL,
+  varovani      TEXT          DEFAULT NULL,          -- JSON pole varovných kódů
+  x_global_transaction_id VARCHAR(100) DEFAULT NULL,
+  pokusy         INT          NOT NULL DEFAULT 0,
+  posledni_pokus DATETIME     DEFAULT NULL,           -- čas posledního pokusu (kvůli backoffu)
+  created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  sent_at        DATETIME     DEFAULT NULL,
+  PRIMARY KEY (id),
+  KEY order_id (order_id)
+);

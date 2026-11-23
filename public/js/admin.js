@@ -33,7 +33,9 @@ function adminSwitchTab(tab) {
   document.getElementById('admin-products').classList.toggle('hidden', tab !== 'products');
   document.getElementById('admin-categories').classList.toggle('hidden', tab !== 'categories');
   document.getElementById('admin-settings').classList.toggle('hidden', tab !== 'settings');
+  document.getElementById('admin-eet').classList.toggle('hidden', tab !== 'eet');
   if (tab === 'settings') renderSettings();
+  if (tab === 'eet') renderEetStatus();
 }
 
 // ─── NASTAVENÍ ───
@@ -46,6 +48,41 @@ function renderSettings() {
   document.getElementById('set-takeaway').value = settings.takeaway_numbers ?? '';
   document.getElementById('set-tables').value = settings.valid_tables ?? '';
   document.getElementById('set-error').textContent = '';
+}
+
+// Read-only stav EET (zapnuto/vypnuto, fronta, poslední POK). Žádné přepínání.
+async function renderEetStatus() {
+  const el = document.getElementById('eet-status');
+  let s;
+  try { s = await api('GET', '/eet/status'); }
+  catch { el.textContent = 'Stav EET nelze načíst.'; return; }
+
+  const row = (k, v) => `<div class="eet-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`;
+  let html = '';
+  if (s.enabled) {
+    html += row('Stav', 'Zapnuto' + (s.overeni ? ' — ověřovací mód' : ''));
+    if (s.certOk === false) html += row('Certifikát', 'CHYBÍ (nelze načíst)');
+    html += row('EIČ / provozovna / pokladna', `${s.eic} / ${s.idProvoz} / ${s.idPokl}`);
+    html += row('Čeká ve frontě', s.ceka);
+    html += row('Vyžaduje zásah', s.chyba);
+    if (s.ceka > 0) html += row('Nejstarší neodeslaná', Math.round(s.oldestAgeMs / 60000) + ' min');
+    html += row('Poslední POK', s.lastSentAt ? `${s.lastPok || '—'} (${fmtDateTime(s.lastSentAt)})` : '—');
+  } else {
+    html += row('Stav', 'Vypnuto');
+  }
+  if (s.alert) html += `<div class="eet-alert-row">⚠ ${esc(s.message)}</div>`;
+  html += `<button id="eet-toggle" class="act ${s.enabled ? 'act-dark-red' : 'act-green'} eet-toggle-btn">` +
+          `${s.enabled ? 'Vypnout EET' : 'Zapnout EET'}</button>`;
+  el.innerHTML = html;
+  document.getElementById('eet-toggle').addEventListener('click', () => toggleEet(!!s.enabled));
+}
+
+// Přepnutí EET (za closing PINem). Stav se zapíše do DB a zaloguje na serveru.
+async function toggleEet(currentlyOn) {
+  try { await api('POST', '/admin/eet/enabled', { enabled: !currentlyOn }); }
+  catch (e) { showToast(e.message, 'error'); return; }
+  showToast(currentlyOn ? 'EET vypnuto' : 'EET zapnuto');
+  renderEetStatus();
 }
 
 async function saveSettings() {

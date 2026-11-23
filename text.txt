@@ -1,0 +1,29 @@
+CREATE TABLE `eet_sales` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_id` int(11) NOT NULL,
+  `porad_cis` varchar(25) NOT NULL,
+  `uuid_zpravy` char(36) NOT NULL,
+  `dat_trzby` datetime NOT NULL,
+  `celk_trzba` decimal(10,2) NOT NULL,
+  `overeni` tinyint(1) NOT NULL DEFAULT 0,
+  `prvni_zaslani` tinyint(1) NOT NULL DEFAULT 1,
+  `stav` enum('ceka','odeslano','chyba') NOT NULL DEFAULT 'ceka',
+  `pok` varchar(39) DEFAULT NULL,
+  `test_odpoved` tinyint(1) DEFAULT NULL,
+  `kod_chyby` int(11) DEFAULT NULL,
+  `varovani` text DEFAULT NULL,
+  `x_global_transaction_id` varchar(100) DEFAULT NULL,
+  `pokusy` int(11) NOT NULL DEFAULT 0,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `sent_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+COMMIT;
+
+
+
+
+
+-settings
+eet_enabled     true

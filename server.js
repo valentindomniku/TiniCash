@@ -4,6 +4,19 @@ const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
 
+// Načtení .env (jednoduché, bez závislosti) — musí být PŘED require('./eet'), který čte env.
+// Proměnná zadaná přímo v prostředí má přednost před .env.
+(() => {
+  try {
+    for (const line of fs.readFileSync(path.join(__dirname, '.env'), 'utf8').split(/\r?\n/)) {
+      const mt = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);   // komentáře (#) i prázdné řádky se přeskočí
+      if (mt && !(mt[1] in process.env)) process.env[mt[1]] = mt[2].trim().replace(/^["']|["']$/g, '');
+    }
+  } catch { /* .env nemusí existovat */ }
+})();
+
+const eet = require('./eet');
+
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -16,6 +29,22 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   dateStrings: true
+});
+
+eet.init(pool);   // EET 2.0 — spustí frontu/worker, jen když je EET_ENABLED=true
+
+// Stav EET pro upozornění v UI
+app.get('/api/eet/status', async (req, res) => {
+  try { res.json(await eet.status()); }
+  catch (e) { res.status(500).json({ enabled: false, error: e.message }); }
+});
+
+// Přepnutí EET ZAP/VYP z adminu (admin je za closing PINem)
+app.post('/api/admin/eet/enabled', async (req, res) => {
+  try {
+    const enabled = await eet.setEnabled(req.body && req.body.enabled === true);
+    res.json({ enabled });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Obal routy — chyba kdekoliv v handleru se vrátí jako 500 (aby se try/catch neopakoval v každé routě)
@@ -441,7 +470,14 @@ app.post('/api/orders/:id/partial-pay', h(async (req, res) => {
     const text = buildReceiptText(paidOrderRows[0], paidItemRows);
     writeAndPrint('receipt.txt', text);
 
+    // EET: zapiš tržbu do fronty VE STEJNÉ transakci jako platbu (pád/restart ji neztratí)
+    const eetId = await eet.recordSale(conn, {
+      order_id: paidOrderId, porad_cis: paidOrderId,
+      dat_trzby: new Date(), celk_trzba: Math.ceil(paidTotal),
+    });
+
     await conn.commit();
+    eet.kickSend(eetId);   // odeslání až po commitu, neblokuje prodej
     res.json({ success: true });
   } catch (e) {
     await conn.rollback();
@@ -548,9 +584,9 @@ function vatLines(vatGroups) {
 }
 
 // Sestaví text účtenky (sdílené pro platbu i dílčí platbu); items musí mít name + vat_rate
-function buildReceiptText(order, items) {
+function buildReceiptText(order, items, when = new Date()) {
   const total = Math.ceil(Number(order.total_price));
-  const now = new Date();
+  const now = when;   // původní datum/čas (u kopie se předá closed_at), jinak teď
 
   // hlavička: datum/čas (vlevo), pod tím UCET# zvýrazněný u pravého kraje
   const lines = [
@@ -596,7 +632,24 @@ app.post('/api/print/receipt', h(async (req, res) => {
   const text = buildReceiptText(order, items);
   writeAndPrint('receipt.txt', text);
 
-  await pool.query('UPDATE orders SET status = "closed", closed_at = NOW(), payment_type = ? WHERE id = ?', [payType, orderId]);
+  // Zavření účtu + zápis EET tržby v JEDNÉ transakci — tržba se nikdy neztratí
+  const conn = await pool.getConnection();
+  let eetId = null;
+  try {
+    await conn.beginTransaction();
+    await conn.query('UPDATE orders SET status = "closed", closed_at = NOW(), payment_type = ? WHERE id = ?', [payType, orderId]);
+    eetId = await eet.recordSale(conn, {
+      order_id: orderId, porad_cis: orderId,
+      dat_trzby: new Date(), celk_trzba: Math.ceil(Number(order.total_price)),
+    });
+    await conn.commit();
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+  eet.kickSend(eetId);   // odeslání až po commitu, neblokuje prodej ani účtenku
 
   // zaplacený účet → smaž jeho pití z barového displeje (bar.html)
   await pool.query(
@@ -824,11 +877,25 @@ app.get('/api/voids/since-closing', h(async (req, res) => {
   });
 }));
 
-// Reprint last receipt
-app.post('/api/print/receipt/copy', h((req, res) => {
-  const tmpFile = path.join(PRINT_DIR, 'receipt.txt');
-  if (!fs.existsSync(tmpFile)) return res.status(404).json({ error: 'Žádná účtenka k tisku' });
-  sendToPrinter(fs.readFileSync(tmpFile, 'utf8'));
+// Posledních 10 zaplacených (uzavřených) účtů — pro výběr kopie účtenky
+app.get('/api/orders/closed/recent', h(async (req, res) => {
+  const [rows] = await pool.query(
+    "SELECT id, table_number, total_price, closed_at FROM orders WHERE status = 'closed' ORDER BY closed_at DESC LIMIT 10"
+  );
+  res.json(rows);
+}));
+
+// Dotisk účtenky už zaplaceného účtu (KOPIE — nic neuzavírá, EET se znovu neeviduje)
+app.post('/api/orders/:id/reprint', h(async (req, res) => {
+  const [orders] = await pool.query("SELECT * FROM orders WHERE id = ? AND status = 'closed'", [req.params.id]);
+  if (!orders.length) return res.status(404).json({ error: 'Zaplacený účet nenalezen' });
+  const order = orders[0];
+  const [items] = await pool.query(
+    'SELECT oi.*, p.name, p.vat_rate FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ? ORDER BY oi.id',
+    [order.id]
+  );
+  const when = order.closed_at ? new Date(String(order.closed_at).replace(' ', 'T')) : new Date();
+  sendToPrinter(buildReceiptText(order, items, when));
   res.json({ success: true });
 }));
 

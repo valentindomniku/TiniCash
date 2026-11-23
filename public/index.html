@@ -93,7 +93,6 @@
       </div>
 
       <div id="payment-panel" class="hidden">
-        <button class="pay-option" id="btn-pay-takeaway">Hotově s sebou</button>
         <button class="pay-option" id="btn-pay-cash">Hotově</button>
         <button class="pay-option pay-back" id="btn-pay-back">Zpět</button>
       </div>
@@ -128,6 +127,15 @@
       <div class="modal-title">Otevřené účty</div>
       <div id="modal-accounts-list"></div>
       <button id="modal-accounts-close" class="act act-gray modal-close-btn">Zavřít</button>
+    </div>
+  </div>
+
+  <!-- MODAL: Kopie účtenky (posledních 10 zaplacených účtů) -->
+  <div id="modal-receipts" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-title">Kopie účtenky — poslední účty</div>
+      <div id="modal-receipts-list"></div>
+      <button id="modal-receipts-close" class="act act-gray modal-close-btn">Zavřít</button>
     </div>
   </div>
 
@@ -177,7 +185,6 @@
       </div>
       <div class="sep-actions hidden" id="sep-pay-choice">
         <button id="sep-pay-back" class="act act-gray">Zpět</button>
-        <button id="sep-pay-takeaway" class="act act-takeaway">Hotově s sebou</button>
         <button id="sep-pay-cash" class="act act-green">Hotově</button>
       </div>
     </div>
@@ -191,6 +198,7 @@
         <button class="admin-tab active" data-tab="products">Produkty</button>
         <button class="admin-tab" data-tab="categories">Kategorie</button>
         <button class="admin-tab" data-tab="settings">Nastavení</button>
+        <button class="admin-tab" data-tab="eet">EET</button>
       </div>
 
       <div id="admin-products" class="admin-pane">
@@ -228,6 +236,10 @@
         <div class="pe-actions">
           <button id="set-save" class="act act-green">Uložit</button>
         </div>
+      </div>
+
+      <div id="admin-eet" class="admin-pane hidden">
+        <div id="eet-status" class="eet-status">Načítám…</div>
       </div>
 
       <button id="modal-admin-close" class="act act-gray modal-close-btn">Zavřít</button>
